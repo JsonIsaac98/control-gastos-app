@@ -1,4 +1,4 @@
-# GDC Mobile - Core Flutter Reutilizable
+# Mobile - Core Flutter Reutilizable
 
 Proyecto base en Flutter diseñado como Core reutilizable para múltiples POCs comerciales. Utiliza Riverpod 2 con anotaciones y code generation como estándar obligatorio de manejo de estado.
 

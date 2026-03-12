@@ -1,0 +1,60 @@
+name: control_gastos_app
+description: "App para control y seguimiento de gastos personales"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Estado
+  flutter_riverpod: ^2.6.1
+  riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Navegación
+  go_router: ^14.6.2
+
+  # Base de datos offline-first
+  drift: ^2.18.0
+  sqlite3_flutter_libs: ^0.5.27
+  sqlite3: ^2.9.4
+  path_provider: ^2.1.5
+  path: ^1.9.0
+
+  # Utilidades
+  intl: ^0.20.2
+  logger: ^2.4.0
+  shared_preferences: ^2.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^4.0.0
+  riverpod_generator: ^2.6.2
+  riverpod_lint: ^2.6.2
+  build_runner: ^2.4.13
+  drift_dev: ^2.18.0
+  custom_lint: ^0.7.4
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icono.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#2C2C2C"
+  adaptive_icon_foreground: "assets/icono.png"
+  web:
+    generate: false

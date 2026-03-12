@@ -24,6 +24,9 @@ class GastoEntity {
     required this.tipoPago,
     required this.fecha,
     this.createdAt,
+    // Campos de sincronización con Supabase
+    this.isSynced = false,
+    this.supabaseId,
   });
 
   final int? id;
@@ -32,6 +35,10 @@ class GastoEntity {
   final TipoPago tipoPago;
   final DateTime fecha;
   final DateTime? createdAt;
+  /// true = sincronizado en Supabase | false = pendiente de subir.
+  final bool isSynced;
+  /// UUID asignado por Supabase. Null hasta la primera sincronización.
+  final String? supabaseId;
 
   GastoEntity copyWith({
     int? id,
@@ -40,6 +47,8 @@ class GastoEntity {
     TipoPago? tipoPago,
     DateTime? fecha,
     DateTime? createdAt,
+    bool? isSynced,
+    String? supabaseId,
   }) {
     return GastoEntity(
       id: id ?? this.id,
@@ -48,11 +57,14 @@ class GastoEntity {
       tipoPago: tipoPago ?? this.tipoPago,
       fecha: fecha ?? this.fecha,
       createdAt: createdAt ?? this.createdAt,
+      isSynced: isSynced ?? this.isSynced,
+      supabaseId: supabaseId ?? this.supabaseId,
     );
   }
 
   @override
   String toString() =>
       'GastoEntity(id: $id, descripcion: $descripcion, monto: $monto, '
-      'tipoPago: ${tipoPago.label}, fecha: $fecha)';
+      'tipoPago: ${tipoPago.label}, fecha: $fecha, '
+      'isSynced: $isSynced, supabaseId: $supabaseId)';
 }

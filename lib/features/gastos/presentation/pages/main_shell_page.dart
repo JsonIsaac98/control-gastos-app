@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/providers/theme_provider.dart';
+import '../../../auth/providers/auth_provider.dart';
+import '../../providers/sync_provider.dart';
 
 class MainShellPage extends ConsumerWidget {
   const MainShellPage({super.key, required this.child});
@@ -11,7 +13,7 @@ class MainShellPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final location     = GoRouterState.of(context).uri.toString();
+    final location = GoRouterState.of(context).uri.toString();
     final currentIndex = location.startsWith('/historial') ? 1 : 0;
 
     return Scaffold(
@@ -49,6 +51,9 @@ class MainShellPage extends ConsumerWidget {
   }
 }
 
+// ----------------------------------------------------------------
+// ThemeToggleButton — cicla entre system / light / dark
+// ----------------------------------------------------------------
 /// Botón reutilizable para el toggle del tema.
 /// Se agrega en el actions de cualquier AppBar.
 class ThemeToggleButton extends ConsumerWidget {
@@ -60,8 +65,8 @@ class ThemeToggleButton extends ConsumerWidget {
 
     final (icon, tooltip) = switch (mode) {
       ThemeMode.system => (Icons.brightness_auto, 'Automático (sistema)'),
-      ThemeMode.light  => (Icons.light_mode,       'Modo claro'),
-      ThemeMode.dark   => (Icons.dark_mode,         'Modo oscuro'),
+      ThemeMode.light => (Icons.light_mode, 'Modo claro'),
+      ThemeMode.dark => (Icons.dark_mode, 'Modo oscuro'),
     };
 
     return IconButton(
@@ -69,6 +74,115 @@ class ThemeToggleButton extends ConsumerWidget {
       tooltip: tooltip,
       onPressed: () =>
           ref.read(themeModeNotifierProvider.notifier).cycleMode(),
+    );
+  }
+}
+
+// ----------------------------------------------------------------
+// SyncButton — sincroniza gastos pendientes con Supabase
+// ----------------------------------------------------------------
+/// Botón reutilizable para disparar la sincronización manual.
+/// Muestra el estado de la operación en un SnackBar.
+class SyncButton extends ConsumerWidget {
+  const SyncButton({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final syncState = ref.watch(syncNotifierProvider);
+
+    // Mostrar resultado en SnackBar cuando cambia el estado
+    ref.listen(syncNotifierProvider, (_, next) {
+      if (next.isLoading) return;
+
+      ScaffoldMessenger.of(context).clearSnackBars();
+
+      if (next.hasError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              next.error.toString().replaceFirst('Exception: ', ''),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      final result = next.value;
+      if (result == null) return;
+
+      final msg = result.nothingToDo
+          ? 'Todo sincronizado ✓'
+          : result.hasErrors
+              ? '${result.synced} sincronizados, ${result.failed} fallidos'
+              : '${result.synced} gasto(s) sincronizados ✓';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      // Limpiar estado tras mostrarlo
+      ref.read(syncNotifierProvider.notifier).reset();
+    });
+
+    return IconButton(
+      tooltip: 'Sincronizar con la nube',
+      icon: syncState.isLoading
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.cloud_sync_outlined),
+      onPressed: syncState.isLoading
+          ? null
+          : () => ref.read(syncNotifierProvider.notifier).syncNow(),
+    );
+  }
+}
+
+// ----------------------------------------------------------------
+// SignOutButton — cierra la sesión del usuario
+// ----------------------------------------------------------------
+class SignOutButton extends ConsumerWidget {
+  const SignOutButton({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return IconButton(
+      tooltip: 'Cerrar sesión',
+      icon: const Icon(Icons.logout),
+      onPressed: () async {
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Cerrar sesión'),
+            content: const Text(
+              '¿Deseas cerrar sesión? Los gastos no sincronizados '
+              'seguirán guardados localmente.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Cerrar sesión'),
+              ),
+            ],
+          ),
+        );
+
+        if (confirm == true) {
+          await ref.read(authNotifierProvider.notifier).signOut();
+          // El router redirige automáticamente a /login vía authStateChanges
+        }
+      },
     );
   }
 }

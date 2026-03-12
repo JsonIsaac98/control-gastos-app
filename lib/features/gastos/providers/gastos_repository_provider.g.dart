@@ -6,7 +6,44 @@ part of 'gastos_repository_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$gastosRepositoryHash() => r'a164d49c02a2c13928f772cd412ad2dfb77a9bb4';
+String _$gastosLocalDatasourceHash() =>
+    r'7f3162999f63481104bf729b2671d73fdd184ee6';
+
+/// See also [gastosLocalDatasource].
+@ProviderFor(gastosLocalDatasource)
+final gastosLocalDatasourceProvider = Provider<GastosLocalDatasource>.internal(
+  gastosLocalDatasource,
+  name: r'gastosLocalDatasourceProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$gastosLocalDatasourceHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef GastosLocalDatasourceRef = ProviderRef<GastosLocalDatasource>;
+String _$gastosRemoteDatasourceHash() =>
+    r'b17e6e67c2764873e088a0a6ac827825384f7895';
+
+/// See also [gastosRemoteDatasource].
+@ProviderFor(gastosRemoteDatasource)
+final gastosRemoteDatasourceProvider =
+    Provider<GastosRemoteDatasource>.internal(
+  gastosRemoteDatasource,
+  name: r'gastosRemoteDatasourceProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$gastosRemoteDatasourceHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef GastosRemoteDatasourceRef = ProviderRef<GastosRemoteDatasource>;
+String _$gastosRepositoryHash() => r'418679f1134824e73f65dd5498de2a03e80266d7';
 
 /// See also [gastosRepository].
 @ProviderFor(gastosRepository)

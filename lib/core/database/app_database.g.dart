@@ -51,9 +51,33 @@ class $GastosTableTable extends GastosTable
       type: DriftSqlType.dateTime,
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
+  static const VerificationMeta _isSyncedMeta =
+      const VerificationMeta('isSynced');
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, descripcion, monto, tipoPago, fecha, createdAt];
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+      'is_synced', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _supabaseIdMeta =
+      const VerificationMeta('supabaseId');
+  @override
+  late final GeneratedColumn<String> supabaseId = GeneratedColumn<String>(
+      'supabase_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        descripcion,
+        monto,
+        tipoPago,
+        fecha,
+        createdAt,
+        isSynced,
+        supabaseId
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -97,6 +121,16 @@ class $GastosTableTable extends GastosTable
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
     }
+    if (data.containsKey('is_synced')) {
+      context.handle(_isSyncedMeta,
+          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+    }
+    if (data.containsKey('supabase_id')) {
+      context.handle(
+          _supabaseIdMeta,
+          supabaseId.isAcceptableOrUnknown(
+              data['supabase_id']!, _supabaseIdMeta));
+    }
     return context;
   }
 
@@ -118,6 +152,10 @@ class $GastosTableTable extends GastosTable
           .read(DriftSqlType.dateTime, data['${effectivePrefix}fecha'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      isSynced: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      supabaseId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}supabase_id']),
     );
   }
 
@@ -134,13 +172,22 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
   final String tipoPago;
   final DateTime fecha;
   final DateTime createdAt;
+
+  /// false = pendiente de subir | true = ya sincronizado en la nube.
+  final bool isSynced;
+
+  /// UUID asignado por Supabase tras la primera sincronización exitosa.
+  /// Permanece null hasta que el registro se suba correctamente.
+  final String? supabaseId;
   const GastosTableData(
       {required this.id,
       required this.descripcion,
       required this.monto,
       required this.tipoPago,
       required this.fecha,
-      required this.createdAt});
+      required this.createdAt,
+      required this.isSynced,
+      this.supabaseId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -150,6 +197,10 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
     map['tipo_pago'] = Variable<String>(tipoPago);
     map['fecha'] = Variable<DateTime>(fecha);
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['is_synced'] = Variable<bool>(isSynced);
+    if (!nullToAbsent || supabaseId != null) {
+      map['supabase_id'] = Variable<String>(supabaseId);
+    }
     return map;
   }
 
@@ -161,6 +212,10 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
       tipoPago: Value(tipoPago),
       fecha: Value(fecha),
       createdAt: Value(createdAt),
+      isSynced: Value(isSynced),
+      supabaseId: supabaseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(supabaseId),
     );
   }
 
@@ -174,6 +229,8 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
       tipoPago: serializer.fromJson<String>(json['tipoPago']),
       fecha: serializer.fromJson<DateTime>(json['fecha']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+      supabaseId: serializer.fromJson<String?>(json['supabaseId']),
     );
   }
   @override
@@ -186,6 +243,8 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
       'tipoPago': serializer.toJson<String>(tipoPago),
       'fecha': serializer.toJson<DateTime>(fecha),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'isSynced': serializer.toJson<bool>(isSynced),
+      'supabaseId': serializer.toJson<String?>(supabaseId),
     };
   }
 
@@ -195,7 +254,9 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
           double? monto,
           String? tipoPago,
           DateTime? fecha,
-          DateTime? createdAt}) =>
+          DateTime? createdAt,
+          bool? isSynced,
+          Value<String?> supabaseId = const Value.absent()}) =>
       GastosTableData(
         id: id ?? this.id,
         descripcion: descripcion ?? this.descripcion,
@@ -203,6 +264,8 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
         tipoPago: tipoPago ?? this.tipoPago,
         fecha: fecha ?? this.fecha,
         createdAt: createdAt ?? this.createdAt,
+        isSynced: isSynced ?? this.isSynced,
+        supabaseId: supabaseId.present ? supabaseId.value : this.supabaseId,
       );
   GastosTableData copyWithCompanion(GastosTableCompanion data) {
     return GastosTableData(
@@ -213,6 +276,9 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
       tipoPago: data.tipoPago.present ? data.tipoPago.value : this.tipoPago,
       fecha: data.fecha.present ? data.fecha.value : this.fecha,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      supabaseId:
+          data.supabaseId.present ? data.supabaseId.value : this.supabaseId,
     );
   }
 
@@ -224,14 +290,16 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
           ..write('monto: $monto, ')
           ..write('tipoPago: $tipoPago, ')
           ..write('fecha: $fecha, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('supabaseId: $supabaseId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, descripcion, monto, tipoPago, fecha, createdAt);
+  int get hashCode => Object.hash(
+      id, descripcion, monto, tipoPago, fecha, createdAt, isSynced, supabaseId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -241,7 +309,9 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
           other.monto == this.monto &&
           other.tipoPago == this.tipoPago &&
           other.fecha == this.fecha &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.isSynced == this.isSynced &&
+          other.supabaseId == this.supabaseId);
 }
 
 class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
@@ -251,6 +321,8 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
   final Value<String> tipoPago;
   final Value<DateTime> fecha;
   final Value<DateTime> createdAt;
+  final Value<bool> isSynced;
+  final Value<String?> supabaseId;
   const GastosTableCompanion({
     this.id = const Value.absent(),
     this.descripcion = const Value.absent(),
@@ -258,6 +330,8 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
     this.tipoPago = const Value.absent(),
     this.fecha = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.supabaseId = const Value.absent(),
   });
   GastosTableCompanion.insert({
     this.id = const Value.absent(),
@@ -266,6 +340,8 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
     required String tipoPago,
     required DateTime fecha,
     this.createdAt = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.supabaseId = const Value.absent(),
   })  : descripcion = Value(descripcion),
         monto = Value(monto),
         tipoPago = Value(tipoPago),
@@ -277,6 +353,8 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
     Expression<String>? tipoPago,
     Expression<DateTime>? fecha,
     Expression<DateTime>? createdAt,
+    Expression<bool>? isSynced,
+    Expression<String>? supabaseId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -285,6 +363,8 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
       if (tipoPago != null) 'tipo_pago': tipoPago,
       if (fecha != null) 'fecha': fecha,
       if (createdAt != null) 'created_at': createdAt,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (supabaseId != null) 'supabase_id': supabaseId,
     });
   }
 
@@ -294,7 +374,9 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
       Value<double>? monto,
       Value<String>? tipoPago,
       Value<DateTime>? fecha,
-      Value<DateTime>? createdAt}) {
+      Value<DateTime>? createdAt,
+      Value<bool>? isSynced,
+      Value<String?>? supabaseId}) {
     return GastosTableCompanion(
       id: id ?? this.id,
       descripcion: descripcion ?? this.descripcion,
@@ -302,6 +384,8 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
       tipoPago: tipoPago ?? this.tipoPago,
       fecha: fecha ?? this.fecha,
       createdAt: createdAt ?? this.createdAt,
+      isSynced: isSynced ?? this.isSynced,
+      supabaseId: supabaseId ?? this.supabaseId,
     );
   }
 
@@ -326,6 +410,12 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (supabaseId.present) {
+      map['supabase_id'] = Variable<String>(supabaseId.value);
+    }
     return map;
   }
 
@@ -337,7 +427,9 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
           ..write('monto: $monto, ')
           ..write('tipoPago: $tipoPago, ')
           ..write('fecha: $fecha, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('supabaseId: $supabaseId')
           ..write(')'))
         .toString();
   }
@@ -362,6 +454,8 @@ typedef $$GastosTableTableCreateCompanionBuilder = GastosTableCompanion
   required String tipoPago,
   required DateTime fecha,
   Value<DateTime> createdAt,
+  Value<bool> isSynced,
+  Value<String?> supabaseId,
 });
 typedef $$GastosTableTableUpdateCompanionBuilder = GastosTableCompanion
     Function({
@@ -371,6 +465,8 @@ typedef $$GastosTableTableUpdateCompanionBuilder = GastosTableCompanion
   Value<String> tipoPago,
   Value<DateTime> fecha,
   Value<DateTime> createdAt,
+  Value<bool> isSynced,
+  Value<String?> supabaseId,
 });
 
 class $$GastosTableTableFilterComposer
@@ -399,6 +495,12 @@ class $$GastosTableTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get supabaseId => $composableBuilder(
+      column: $table.supabaseId, builder: (column) => ColumnFilters(column));
 }
 
 class $$GastosTableTableOrderingComposer
@@ -427,6 +529,12 @@ class $$GastosTableTableOrderingComposer
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get supabaseId => $composableBuilder(
+      column: $table.supabaseId, builder: (column) => ColumnOrderings(column));
 }
 
 class $$GastosTableTableAnnotationComposer
@@ -455,6 +563,12 @@ class $$GastosTableTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<String> get supabaseId => $composableBuilder(
+      column: $table.supabaseId, builder: (column) => column);
 }
 
 class $$GastosTableTableTableManager extends RootTableManager<
@@ -489,6 +603,8 @@ class $$GastosTableTableTableManager extends RootTableManager<
             Value<String> tipoPago = const Value.absent(),
             Value<DateTime> fecha = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<String?> supabaseId = const Value.absent(),
           }) =>
               GastosTableCompanion(
             id: id,
@@ -497,6 +613,8 @@ class $$GastosTableTableTableManager extends RootTableManager<
             tipoPago: tipoPago,
             fecha: fecha,
             createdAt: createdAt,
+            isSynced: isSynced,
+            supabaseId: supabaseId,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -505,6 +623,8 @@ class $$GastosTableTableTableManager extends RootTableManager<
             required String tipoPago,
             required DateTime fecha,
             Value<DateTime> createdAt = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<String?> supabaseId = const Value.absent(),
           }) =>
               GastosTableCompanion.insert(
             id: id,
@@ -513,6 +633,8 @@ class $$GastosTableTableTableManager extends RootTableManager<
             tipoPago: tipoPago,
             fecha: fecha,
             createdAt: createdAt,
+            isSynced: isSynced,
+            supabaseId: supabaseId,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

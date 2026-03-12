@@ -27,10 +27,15 @@ dependencies:
   path_provider: ^2.1.5
   path: ^1.9.0
 
+  # Backend — Supabase (Auth + PostgreSQL sync)
+  supabase_flutter: ^2.8.4
+
   # Utilidades
   intl: ^0.20.2
   logger: ^2.4.0
   shared_preferences: ^2.3.3
+  # Variables de entorno — oculta credenciales fuera del repo
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -48,6 +53,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+    - .env          # flutter_dotenv carga este archivo en runtime
 
 flutter_launcher_icons:
   android: "launcher_icon"

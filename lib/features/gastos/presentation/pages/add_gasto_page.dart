@@ -222,7 +222,7 @@ class _TipoPagoSelector extends StatelessWidget {
               .toList(),
           selected: {selected},
           onSelectionChanged: (set) => onChanged(set.first),
-          style: ButtonStyle(
+          style: const ButtonStyle(
             visualDensity: VisualDensity.compact,
           ),
         ),

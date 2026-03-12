@@ -8,8 +8,13 @@ class GastosLocalDatasource {
 
   final AppDatabase _db;
 
+  // ----------------------------------------------------------------
+  // Lectura — siempre excluye registros marcados como pendingDelete
+  // ----------------------------------------------------------------
+
   Future<List<GastoEntity>> getGastos() async {
     final rows = await (_db.select(_db.gastosTable)
+          ..where((t) => t.pendingDelete.equals(false))
           ..orderBy([(t) => OrderingTerm.desc(t.fecha)]))
         .get();
     return rows.map(_toEntity).toList();
@@ -22,6 +27,7 @@ class GastosLocalDatasource {
     final rows = await (_db.select(_db.gastosTable)
           ..where(
             (t) =>
+                t.pendingDelete.equals(false) &
                 t.fecha.isBetweenValues(start, end),
           )
           ..orderBy([(t) => OrderingTerm.desc(t.fecha)]))
@@ -38,13 +44,16 @@ class GastosLocalDatasource {
       int year, int month) async {
     final gastos = await getGastosByMonth(year, month);
     final Map<TipoPago, double> totales = {};
-
     for (final gasto in gastos) {
       totales[gasto.tipoPago] =
           (totales[gasto.tipoPago] ?? 0.0) + gasto.monto;
     }
     return totales;
   }
+
+  // ----------------------------------------------------------------
+  // Escritura
+  // ----------------------------------------------------------------
 
   Future<GastoEntity> addGasto(GastoEntity gasto) async {
     final now = gasto.createdAt ?? DateTime.now();
@@ -62,8 +71,33 @@ class GastosLocalDatasource {
     return gasto.copyWith(id: id, createdAt: now, isSynced: false);
   }
 
+  /// Elimina un gasto de forma inteligente según su estado de sincronización:
+  ///
+  /// - Si el registro nunca llegó a Supabase ([supabaseId] == null):
+  ///   eliminación física inmediata (nunca existió en la nube).
+  /// - Si ya fue sincronizado ([supabaseId] != null):
+  ///   **soft delete** → marca [pendingDelete] = true y lo oculta de la UI.
+  ///   El registro físico se elimina de Supabase y luego de SQLite durante
+  ///   el próximo sync (fase 0 de [SyncService.fullSync]).
   Future<void> deleteGasto(int id) async {
-    await (_db.delete(_db.gastosTable)..where((t) => t.id.equals(id))).go();
+    // Buscar el registro para saber si tiene supabaseId
+    final row = await (_db.select(_db.gastosTable)
+          ..where((t) => t.id.equals(id))
+          ..limit(1))
+        .getSingleOrNull();
+
+    if (row == null) return;
+
+    if (row.supabaseId == null) {
+      // Nunca estuvo en Supabase → borrado físico inmediato
+      await (_db.delete(_db.gastosTable)..where((t) => t.id.equals(id))).go();
+    } else {
+      // Ya está en Supabase → soft delete para procesarlo en el sync
+      await (_db.update(_db.gastosTable)..where((t) => t.id.equals(id)))
+          .write(const GastosTableCompanion(
+        pendingDelete: Value(true),
+      ));
+    }
   }
 
   Future<void> updateGasto(GastoEntity gasto) async {
@@ -84,14 +118,18 @@ class GastosLocalDatasource {
   }
 
   // ----------------------------------------------------------------
-  // Métodos de sincronización
+  // Métodos de sincronización — Push
   // ----------------------------------------------------------------
 
   /// Retorna todos los gastos que aún no han sido subidos a Supabase
-  /// (is_synced == false), ordenados por fecha de creación ascendente.
+  /// (is_synced == false) y que NO están pendientes de eliminar,
+  /// ordenados por fecha de creación ascendente.
   Future<List<GastoEntity>> getUnsyncedGastos() async {
     final rows = await (_db.select(_db.gastosTable)
-          ..where((t) => t.isSynced.equals(false))
+          ..where(
+            (t) =>
+                t.isSynced.equals(false) & t.pendingDelete.equals(false),
+          )
           ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
         .get();
     return rows.map(_toEntity).toList();
@@ -108,6 +146,59 @@ class GastosLocalDatasource {
         supabaseId: Value(supabaseId),
       ),
     );
+  }
+
+  // ----------------------------------------------------------------
+  // Métodos de sincronización — Eliminación (fase 0)
+  // ----------------------------------------------------------------
+
+  /// Retorna todos los registros marcados con [pendingDelete] = true.
+  /// La fase 0 del sync los elimina de Supabase y luego físicamente.
+  Future<List<GastosTableData>> getPendingDeletes() async {
+    return (_db.select(_db.gastosTable)
+          ..where((t) => t.pendingDelete.equals(true)))
+        .get();
+  }
+
+  /// Elimina físicamente de SQLite el registro con [id].
+  /// Llamar SOLO después de confirmar la eliminación en Supabase.
+  Future<void> hardDeleteById(int id) async {
+    await (_db.delete(_db.gastosTable)..where((t) => t.id.equals(id))).go();
+  }
+
+  // ----------------------------------------------------------------
+  // Métodos de sincronización — Pull
+  // ----------------------------------------------------------------
+
+  /// Retorna true si ya existe un registro local con el [supabaseId] dado,
+  /// incluyendo los marcados como [pendingDelete] (para no re-insertarlos
+  /// antes de que el sync los elimine de Supabase).
+  Future<bool> existsBySupabaseId(String supabaseId) async {
+    final row = await (_db.select(_db.gastosTable)
+          ..where((t) => t.supabaseId.equals(supabaseId))
+          ..limit(1))
+        .getSingleOrNull();
+    return row != null;
+  }
+
+  /// Inserta un gasto proveniente de Supabase en la base de datos local.
+  ///
+  /// El gasto se marca como [isSynced] = true inmediatamente, ya que
+  /// su origen es la nube y no necesita volver a subirse.
+  Future<void> insertFromRemote(Map<String, dynamic> data) async {
+    await _db.into(_db.gastosTable).insert(
+          GastosTableCompanion.insert(
+            descripcion: data['descripcion'] as String,
+            monto: (data['monto'] as num).toDouble(),
+            tipoPago: data['tipo_pago'] as String,
+            fecha: DateTime.parse(data['fecha'] as String).toLocal(),
+            createdAt: Value(
+              DateTime.parse(data['created_at'] as String).toLocal(),
+            ),
+            isSynced: const Value(true),
+            supabaseId: Value(data['id'] as String),
+          ),
+        );
   }
 
   GastoEntity _toEntity(GastosTableData row) {

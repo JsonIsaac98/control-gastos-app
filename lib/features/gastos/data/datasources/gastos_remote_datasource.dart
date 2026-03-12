@@ -55,4 +55,22 @@ class GastosRemoteDatasource {
   Future<void> deleteGasto(String supabaseId) async {
     await _client.from(_table).delete().eq('id', supabaseId);
   }
+
+  // ----------------------------------------------------------------
+  // Fetch de todos los gastos del usuario (para pull sync)
+  // ----------------------------------------------------------------
+  /// Descarga todos los gastos del usuario desde Supabase, ordenados
+  /// por fecha descendente.
+  ///
+  /// Retorna una lista de mapas con los datos crudos de la nube.
+  /// RLS asegura que solo se devuelven los registros del [userId].
+  Future<List<Map<String, dynamic>>> fetchAllGastos(String userId) async {
+    final response = await _client
+        .from(_table)
+        .select()
+        .eq('user_id', userId)
+        .order('fecha', ascending: false);
+
+    return List<Map<String, dynamic>>.from(response as List);
+  }
 }

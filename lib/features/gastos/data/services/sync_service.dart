@@ -11,24 +11,34 @@ class SyncResult {
     required this.total,
     required this.synced,
     required this.failed,
+    this.pulled = 0,
+    this.deleted = 0,
   });
 
-  /// Total de registros que estaban pendientes.
+  /// Total de registros locales que estaban pendientes de subir.
   final int total;
 
-  /// Registros sincronizados exitosamente.
+  /// Registros subidos exitosamente a Supabase.
   final int synced;
 
-  /// Registros que fallaron.
+  /// Registros que fallaron (en cualquier fase).
   final int failed;
+
+  /// Registros descargados de Supabase e insertados localmente.
+  final int pulled;
+
+  /// Registros eliminados de Supabase y borrados físicamente de SQLite.
+  final int deleted;
 
   bool get hasErrors => failed > 0;
   bool get allSynced => total > 0 && failed == 0;
-  bool get nothingToDo => total == 0;
+
+  /// No había nada que hacer en ninguna dirección.
+  bool get nothingToDo => total == 0 && pulled == 0 && deleted == 0;
 
   @override
-  String toString() =>
-      'SyncResult(total: $total, synced: $synced, failed: $failed)';
+  String toString() => 'SyncResult(total: $total, synced: $synced, '
+      'failed: $failed, pulled: $pulled, deleted: $deleted)';
 }
 
 // ----------------------------------------------------------------
@@ -104,5 +114,104 @@ class SyncService {
 
     logger.i('SyncService: Completado → $result');
     return result;
+  }
+
+  // ----------------------------------------------------------------
+  // Sincronización bidireccional completa
+  // ----------------------------------------------------------------
+  /// Ejecuta las tres fases de sincronización en orden:
+  ///   0. **Delete** — elimina de Supabase los gastos con [pendingDelete]=true,
+  ///      luego los borra físicamente de SQLite.
+  ///   1. **Push**   — sube gastos locales no sincronizados → Supabase.
+  ///   2. **Pull**   — descarga gastos de Supabase que no existen localmente.
+  ///
+  /// El orden importa: las eliminaciones van primero para que el pull
+  /// no vuelva a insertar registros que el usuario ya borró.
+  Future<SyncResult> fullSync(String userId) async {
+    // ── Fase 0: Eliminaciones (pendingDelete → Supabase → SQLite) ──
+    int deleted = 0;
+    int deleteFailed = 0;
+
+    final pendingDeletes = await localDatasource.getPendingDeletes();
+
+    if (pendingDeletes.isNotEmpty) {
+      logger.i(
+        'SyncService: Eliminando ${pendingDeletes.length} gasto(s) en la nube...',
+      );
+    }
+
+    for (final row in pendingDeletes) {
+      try {
+        // Siempre tiene supabaseId porque deleteGasto solo hace soft-delete
+        // cuando existe supabaseId
+        await remoteDatasource.deleteGasto(row.supabaseId!);
+        await localDatasource.hardDeleteById(row.id);
+        deleted++;
+        logger.d(
+          'SyncService: 🗑️ Gasto ${row.supabaseId} eliminado de Supabase y SQLite.',
+        );
+      } catch (e, stack) {
+        deleteFailed++;
+        logger.e(
+          'SyncService: ❌ Error al eliminar gasto #${row.id}',
+          error: e,
+          stackTrace: stack,
+        );
+      }
+    }
+
+    // ── Fase 1: Push (local → remoto) ─────────────────────────────
+    final pushResult = await syncPendingGastos(userId);
+
+    // ── Fase 2: Pull (remoto → local) ─────────────────────────────
+    int pulled = 0;
+    int pullFailed = 0;
+
+    try {
+      final remoteGastos = await remoteDatasource.fetchAllGastos(userId);
+      logger.i(
+        'SyncService: Pull → ${remoteGastos.length} gasto(s) en la nube.',
+      );
+
+      for (final remote in remoteGastos) {
+        try {
+          final supabaseId = remote['id'] as String;
+          final exists =
+              await localDatasource.existsBySupabaseId(supabaseId);
+
+          if (!exists) {
+            await localDatasource.insertFromRemote(remote);
+            pulled++;
+            logger.d(
+              'SyncService: ⬇️ Gasto remoto $supabaseId insertado localmente.',
+            );
+          }
+        } catch (e, stack) {
+          pullFailed++;
+          logger.e(
+            'SyncService: ❌ Error al insertar gasto remoto',
+            error: e,
+            stackTrace: stack,
+          );
+        }
+      }
+
+      logger.i('SyncService: Pull completo → $pulled nuevo(s).');
+    } catch (e, stack) {
+      logger.e(
+        'SyncService: ❌ Error general en fase pull',
+        error: e,
+        stackTrace: stack,
+      );
+      pullFailed++;
+    }
+
+    return SyncResult(
+      total: pushResult.total,
+      synced: pushResult.synced,
+      failed: pushResult.failed + pullFailed + deleteFailed,
+      pulled: pulled,
+      deleted: deleted,
+    );
   }
 }

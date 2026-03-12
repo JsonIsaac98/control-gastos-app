@@ -77,7 +77,39 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           color: colorScheme.onSurfaceVariant,
                         ),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 16),
+
+                  // ── Banner offline ─────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'La primera sesión requiere conexión a internet. '
+                            'Luego podrás usar la app sin conexión.',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 28),
 
                   // ── Correo ─────────────────────────────────────
                   TextFormField(

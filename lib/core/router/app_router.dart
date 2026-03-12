@@ -12,18 +12,25 @@ import '../../features/gastos/presentation/pages/dashboard_page.dart';
 import '../../features/gastos/presentation/pages/gastos_list_page.dart';
 import '../../features/gastos/presentation/pages/main_shell_page.dart';
 import '../providers/supabase_provider.dart';
+import '../services/local_auth_cache.dart';
 
 part 'app_router.g.dart';
 
 // ----------------------------------------------------------------
-// ChangeNotifier que escucha cambios de autenticación de Supabase
-// y notifica al GoRouter para que re-evalúe el redirect.
+// ChangeNotifier que escucha DOS fuentes:
+//   1. Supabase auth  → sesión online (token JWT)
+//   2. LocalAuthCache → sesión offline cacheada (userId + email)
+//
+// Cuando cualquiera de las dos cambia, GoRouter re-evalúa el redirect.
 // ----------------------------------------------------------------
 class _AuthChangeNotifier extends ChangeNotifier {
   _AuthChangeNotifier(SupabaseClient client) {
+    // Escuchar cambios en la sesión de Supabase (login / logout / token refresh)
     _subscription = client.auth.onAuthStateChange.listen((_) {
       notifyListeners();
     });
+    // Escuchar cambios en la caché local (saveUser / clearUser)
+    LocalAuthCache.instance.addListener(notifyListeners);
   }
 
   late final StreamSubscription<AuthState> _subscription;
@@ -31,29 +38,34 @@ class _AuthChangeNotifier extends ChangeNotifier {
   @override
   void dispose() {
     _subscription.cancel();
+    LocalAuthCache.instance.removeListener(notifyListeners);
     super.dispose();
   }
 }
 
 // ----------------------------------------------------------------
-// Router principal con auth guard
+// Router principal con auth guard offline-ready
 // ----------------------------------------------------------------
 @Riverpod(keepAlive: true)
 GoRouter appRouter(AppRouterRef ref) {
   final client = ref.watch(supabaseClientProvider);
 
-  // Conectar el ciclo de vida del notifier al del provider
   final notifier = _AuthChangeNotifier(client);
   ref.onDispose(notifier.dispose);
 
   return GoRouter(
     initialLocation: '/dashboard',
-    // refreshListenable llama a redirect cada vez que el estado de auth cambia
     refreshListenable: notifier,
 
     // ── Auth Guard ──────────────────────────────────────────────
+    // Consideramos autenticado si CUALQUIERA de los dos es verdadero:
+    //   • Supabase tiene sesión activa (con internet)
+    //   • LocalAuthCache tiene datos (sesión offline cacheada)
     redirect: (context, state) {
-      final isAuthenticated = client.auth.currentUser != null;
+      final supabaseAuth = client.auth.currentUser != null;
+      final localAuth = LocalAuthCache.instance.isLoggedIn;
+      final isAuthenticated = supabaseAuth || localAuth;
+
       final location = state.matchedLocation;
       final isOnAuthRoute = location.startsWith('/login') ||
           location.startsWith('/register');
@@ -64,7 +76,6 @@ GoRouter appRouter(AppRouterRef ref) {
       // Ya autenticado y en ruta de auth → dashboard
       if (isAuthenticated && isOnAuthRoute) return '/dashboard';
 
-      // Sin cambio
       return null;
     },
 

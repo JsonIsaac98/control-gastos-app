@@ -67,6 +67,16 @@ class $GastosTableTable extends GastosTable
   late final GeneratedColumn<String> supabaseId = GeneratedColumn<String>(
       'supabase_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _pendingDeleteMeta =
+      const VerificationMeta('pendingDelete');
+  @override
+  late final GeneratedColumn<bool> pendingDelete = GeneratedColumn<bool>(
+      'pending_delete', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("pending_delete" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -76,7 +86,8 @@ class $GastosTableTable extends GastosTable
         fecha,
         createdAt,
         isSynced,
-        supabaseId
+        supabaseId,
+        pendingDelete
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -131,6 +142,12 @@ class $GastosTableTable extends GastosTable
           supabaseId.isAcceptableOrUnknown(
               data['supabase_id']!, _supabaseIdMeta));
     }
+    if (data.containsKey('pending_delete')) {
+      context.handle(
+          _pendingDeleteMeta,
+          pendingDelete.isAcceptableOrUnknown(
+              data['pending_delete']!, _pendingDeleteMeta));
+    }
     return context;
   }
 
@@ -156,6 +173,8 @@ class $GastosTableTable extends GastosTable
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       supabaseId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}supabase_id']),
+      pendingDelete: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}pending_delete'])!,
     );
   }
 
@@ -179,6 +198,11 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
   /// UUID asignado por Supabase tras la primera sincronización exitosa.
   /// Permanece null hasta que el registro se suba correctamente.
   final String? supabaseId;
+
+  /// true = el usuario eliminó este gasto localmente y hay que
+  /// borrarlo de Supabase en el próximo sync antes de eliminarlo
+  /// físicamente de SQLite.  Permanece oculto en todas las queries.
+  final bool pendingDelete;
   const GastosTableData(
       {required this.id,
       required this.descripcion,
@@ -187,7 +211,8 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
       required this.fecha,
       required this.createdAt,
       required this.isSynced,
-      this.supabaseId});
+      this.supabaseId,
+      required this.pendingDelete});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -201,6 +226,7 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
     if (!nullToAbsent || supabaseId != null) {
       map['supabase_id'] = Variable<String>(supabaseId);
     }
+    map['pending_delete'] = Variable<bool>(pendingDelete);
     return map;
   }
 
@@ -216,6 +242,7 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
       supabaseId: supabaseId == null && nullToAbsent
           ? const Value.absent()
           : Value(supabaseId),
+      pendingDelete: Value(pendingDelete),
     );
   }
 
@@ -231,6 +258,7 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       supabaseId: serializer.fromJson<String?>(json['supabaseId']),
+      pendingDelete: serializer.fromJson<bool>(json['pendingDelete']),
     );
   }
   @override
@@ -245,6 +273,7 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'isSynced': serializer.toJson<bool>(isSynced),
       'supabaseId': serializer.toJson<String?>(supabaseId),
+      'pendingDelete': serializer.toJson<bool>(pendingDelete),
     };
   }
 
@@ -256,7 +285,8 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
           DateTime? fecha,
           DateTime? createdAt,
           bool? isSynced,
-          Value<String?> supabaseId = const Value.absent()}) =>
+          Value<String?> supabaseId = const Value.absent(),
+          bool? pendingDelete}) =>
       GastosTableData(
         id: id ?? this.id,
         descripcion: descripcion ?? this.descripcion,
@@ -266,6 +296,7 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
         createdAt: createdAt ?? this.createdAt,
         isSynced: isSynced ?? this.isSynced,
         supabaseId: supabaseId.present ? supabaseId.value : this.supabaseId,
+        pendingDelete: pendingDelete ?? this.pendingDelete,
       );
   GastosTableData copyWithCompanion(GastosTableCompanion data) {
     return GastosTableData(
@@ -279,6 +310,9 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       supabaseId:
           data.supabaseId.present ? data.supabaseId.value : this.supabaseId,
+      pendingDelete: data.pendingDelete.present
+          ? data.pendingDelete.value
+          : this.pendingDelete,
     );
   }
 
@@ -292,14 +326,15 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
           ..write('fecha: $fecha, ')
           ..write('createdAt: $createdAt, ')
           ..write('isSynced: $isSynced, ')
-          ..write('supabaseId: $supabaseId')
+          ..write('supabaseId: $supabaseId, ')
+          ..write('pendingDelete: $pendingDelete')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, descripcion, monto, tipoPago, fecha, createdAt, isSynced, supabaseId);
+  int get hashCode => Object.hash(id, descripcion, monto, tipoPago, fecha,
+      createdAt, isSynced, supabaseId, pendingDelete);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -311,7 +346,8 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
           other.fecha == this.fecha &&
           other.createdAt == this.createdAt &&
           other.isSynced == this.isSynced &&
-          other.supabaseId == this.supabaseId);
+          other.supabaseId == this.supabaseId &&
+          other.pendingDelete == this.pendingDelete);
 }
 
 class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
@@ -323,6 +359,7 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
   final Value<DateTime> createdAt;
   final Value<bool> isSynced;
   final Value<String?> supabaseId;
+  final Value<bool> pendingDelete;
   const GastosTableCompanion({
     this.id = const Value.absent(),
     this.descripcion = const Value.absent(),
@@ -332,6 +369,7 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
     this.createdAt = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.supabaseId = const Value.absent(),
+    this.pendingDelete = const Value.absent(),
   });
   GastosTableCompanion.insert({
     this.id = const Value.absent(),
@@ -342,6 +380,7 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
     this.createdAt = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.supabaseId = const Value.absent(),
+    this.pendingDelete = const Value.absent(),
   })  : descripcion = Value(descripcion),
         monto = Value(monto),
         tipoPago = Value(tipoPago),
@@ -355,6 +394,7 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
     Expression<DateTime>? createdAt,
     Expression<bool>? isSynced,
     Expression<String>? supabaseId,
+    Expression<bool>? pendingDelete,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -365,6 +405,7 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
       if (createdAt != null) 'created_at': createdAt,
       if (isSynced != null) 'is_synced': isSynced,
       if (supabaseId != null) 'supabase_id': supabaseId,
+      if (pendingDelete != null) 'pending_delete': pendingDelete,
     });
   }
 
@@ -376,7 +417,8 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
       Value<DateTime>? fecha,
       Value<DateTime>? createdAt,
       Value<bool>? isSynced,
-      Value<String?>? supabaseId}) {
+      Value<String?>? supabaseId,
+      Value<bool>? pendingDelete}) {
     return GastosTableCompanion(
       id: id ?? this.id,
       descripcion: descripcion ?? this.descripcion,
@@ -386,6 +428,7 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
       createdAt: createdAt ?? this.createdAt,
       isSynced: isSynced ?? this.isSynced,
       supabaseId: supabaseId ?? this.supabaseId,
+      pendingDelete: pendingDelete ?? this.pendingDelete,
     );
   }
 
@@ -416,6 +459,9 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
     if (supabaseId.present) {
       map['supabase_id'] = Variable<String>(supabaseId.value);
     }
+    if (pendingDelete.present) {
+      map['pending_delete'] = Variable<bool>(pendingDelete.value);
+    }
     return map;
   }
 
@@ -429,7 +475,8 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
           ..write('fecha: $fecha, ')
           ..write('createdAt: $createdAt, ')
           ..write('isSynced: $isSynced, ')
-          ..write('supabaseId: $supabaseId')
+          ..write('supabaseId: $supabaseId, ')
+          ..write('pendingDelete: $pendingDelete')
           ..write(')'))
         .toString();
   }
@@ -456,6 +503,7 @@ typedef $$GastosTableTableCreateCompanionBuilder = GastosTableCompanion
   Value<DateTime> createdAt,
   Value<bool> isSynced,
   Value<String?> supabaseId,
+  Value<bool> pendingDelete,
 });
 typedef $$GastosTableTableUpdateCompanionBuilder = GastosTableCompanion
     Function({
@@ -467,6 +515,7 @@ typedef $$GastosTableTableUpdateCompanionBuilder = GastosTableCompanion
   Value<DateTime> createdAt,
   Value<bool> isSynced,
   Value<String?> supabaseId,
+  Value<bool> pendingDelete,
 });
 
 class $$GastosTableTableFilterComposer
@@ -501,6 +550,9 @@ class $$GastosTableTableFilterComposer
 
   ColumnFilters<String> get supabaseId => $composableBuilder(
       column: $table.supabaseId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get pendingDelete => $composableBuilder(
+      column: $table.pendingDelete, builder: (column) => ColumnFilters(column));
 }
 
 class $$GastosTableTableOrderingComposer
@@ -535,6 +587,10 @@ class $$GastosTableTableOrderingComposer
 
   ColumnOrderings<String> get supabaseId => $composableBuilder(
       column: $table.supabaseId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get pendingDelete => $composableBuilder(
+      column: $table.pendingDelete,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$GastosTableTableAnnotationComposer
@@ -569,6 +625,9 @@ class $$GastosTableTableAnnotationComposer
 
   GeneratedColumn<String> get supabaseId => $composableBuilder(
       column: $table.supabaseId, builder: (column) => column);
+
+  GeneratedColumn<bool> get pendingDelete => $composableBuilder(
+      column: $table.pendingDelete, builder: (column) => column);
 }
 
 class $$GastosTableTableTableManager extends RootTableManager<
@@ -605,6 +664,7 @@ class $$GastosTableTableTableManager extends RootTableManager<
             Value<DateTime> createdAt = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<String?> supabaseId = const Value.absent(),
+            Value<bool> pendingDelete = const Value.absent(),
           }) =>
               GastosTableCompanion(
             id: id,
@@ -615,6 +675,7 @@ class $$GastosTableTableTableManager extends RootTableManager<
             createdAt: createdAt,
             isSynced: isSynced,
             supabaseId: supabaseId,
+            pendingDelete: pendingDelete,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -625,6 +686,7 @@ class $$GastosTableTableTableManager extends RootTableManager<
             Value<DateTime> createdAt = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<String?> supabaseId = const Value.absent(),
+            Value<bool> pendingDelete = const Value.absent(),
           }) =>
               GastosTableCompanion.insert(
             id: id,
@@ -635,6 +697,7 @@ class $$GastosTableTableTableManager extends RootTableManager<
             createdAt: createdAt,
             isSynced: isSynced,
             supabaseId: supabaseId,
+            pendingDelete: pendingDelete,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

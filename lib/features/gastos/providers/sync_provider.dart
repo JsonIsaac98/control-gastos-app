@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/providers/logger_provider.dart';
+import '../../../core/services/local_auth_cache.dart';
 import '../data/services/sync_service.dart';
 import 'gastos_provider.dart';
 import 'gastos_repository_provider.dart';
@@ -33,13 +34,18 @@ class SyncNotifier extends _$SyncNotifier {
   @override
   AsyncValue<SyncResult?> build() => const AsyncValue.data(null);
 
-  /// Lanza la sincronización de los gastos pendientes.
+  /// Lanza la sincronización bidireccional completa (push + pull).
   ///
-  /// Solo ejecuta si hay un usuario autenticado activo.
+  /// Requiere un usuario autenticado. Primero intenta usar la sesión
+  /// activa de Supabase; si no hay conexión, usa el userId del caché
+  /// local para identificar al usuario.
+  ///
   /// Al terminar, invalida los providers de UI para refrescar los datos.
   Future<void> syncNow() async {
-    // Verificar que hay sesión activa antes de intentar sincronizar
-    final userId = Supabase.instance.client.auth.currentUser?.id;
+    // Prioridad: sesión de Supabase → caché local (modo offline parcial)
+    final userId = Supabase.instance.client.auth.currentUser?.id ??
+        LocalAuthCache.instance.userId;
+
     if (userId == null) {
       state = AsyncValue.error(
         Exception('Debes iniciar sesión para sincronizar.'),
@@ -51,7 +57,7 @@ class SyncNotifier extends _$SyncNotifier {
     state = const AsyncValue.loading();
 
     state = await AsyncValue.guard(
-      () => ref.read(syncServiceProvider).syncPendingGastos(userId),
+      () => ref.read(syncServiceProvider).fullSync(userId),
     );
 
     // Si la sync fue exitosa, refrescar los datos en pantalla

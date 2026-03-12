@@ -1,4 +1,4 @@
-package com.gdc.control_gastos_app
+package com.yeison.control_gastos_app
 
 import io.flutter.embedding.android.FlutterActivity
 

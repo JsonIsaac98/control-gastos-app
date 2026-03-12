@@ -112,15 +112,36 @@ class SyncButton extends ConsumerWidget {
       final result = next.value;
       if (result == null) return;
 
-      final msg = result.nothingToDo
-          ? 'Todo sincronizado ✓'
-          : result.hasErrors
-              ? '${result.synced} sincronizados, ${result.failed} fallidos'
-              : '${result.synced} gasto(s) sincronizados ✓';
+      // Construir mensaje con contadores de push y pull
+      final String msg;
+      final Color bgColor;
+
+      if (result.nothingToDo) {
+        msg = 'Todo al día ✓';
+        bgColor = const Color(0xFF059669); // verde
+      } else if (result.hasErrors) {
+        final parts = <String>[
+          if (result.synced > 0) '${result.synced} subidos',
+          if (result.pulled > 0) '${result.pulled} descargados',
+          if (result.deleted > 0) '${result.deleted} eliminados',
+          '${result.failed} fallidos',
+        ];
+        msg = parts.join(' · ');
+        bgColor = const Color(0xFFB45309); // ámbar oscuro
+      } else {
+        final parts = <String>[
+          if (result.synced > 0) '${result.synced} subidos',
+          if (result.pulled > 0) '${result.pulled} descargados',
+          if (result.deleted > 0) '${result.deleted} eliminados',
+        ];
+        msg = '${parts.join(' · ')} ✓';
+        bgColor = const Color(0xFF059669); // verde
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),
+          backgroundColor: bgColor,
           behavior: SnackBarBehavior.floating,
         ),
       );

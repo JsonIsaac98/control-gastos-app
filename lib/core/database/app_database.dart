@@ -31,6 +31,13 @@ class GastosTable extends Table {
   /// UUID asignado por Supabase tras la primera sincronización exitosa.
   /// Permanece null hasta que el registro se suba correctamente.
   TextColumn get supabaseId => text().nullable()();
+
+  // ── Soft delete (schema v3) ───────────────────────────────────
+  /// true = el usuario eliminó este gasto localmente y hay que
+  /// borrarlo de Supabase en el próximo sync antes de eliminarlo
+  /// físicamente de SQLite.  Permanece oculto en todas las queries.
+  BoolColumn get pendingDelete =>
+      boolean().withDefault(const Constant(false))();
 }
 
 @DriftDatabase(tables: [GastosTable])
@@ -38,7 +45,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   /// Migración incremental: solo toca lo que cambió entre versiones.
   @override
@@ -48,6 +55,11 @@ class AppDatabase extends _$AppDatabase {
           if (from < 2) {
             await migrator.addColumn(gastosTable, gastosTable.isSynced);
             await migrator.addColumn(gastosTable, gastosTable.supabaseId);
+          }
+          // v2 → v3: soft delete para sincronización bidireccional segura
+          if (from < 3) {
+            await migrator.addColumn(
+                gastosTable, gastosTable.pendingDelete);
           }
         },
       );

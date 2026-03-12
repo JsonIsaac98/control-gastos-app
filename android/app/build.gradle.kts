@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.gdc.control_gastos_app"
+    namespace = "com.yeison.control_gastos_app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.gdc.control_gastos_app"
+        applicationId = "com.yeison.control_gastos_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

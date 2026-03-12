@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/providers/supabase_provider.dart';
+import '../../../core/services/local_auth_cache.dart';
 import '../data/repositories/auth_repository_impl.dart';
 import '../domain/repositories/auth_repository.dart';
 
@@ -40,6 +41,8 @@ class AuthNotifier extends _$AuthNotifier {
 
   /// Inicia sesión con correo y contraseña.
   /// Retorna true si fue exitoso.
+  /// En caso de éxito guarda el userId + email en LocalAuthCache
+  /// para que la app funcione offline en los próximos lanzamientos.
   Future<bool> signIn({
     required String email,
     required String password,
@@ -51,11 +54,24 @@ class AuthNotifier extends _$AuthNotifier {
             password: password,
           ),
     );
+
+    if (!state.hasError) {
+      final userId =
+          ref.read(supabaseClientProvider).auth.currentUser?.id;
+      if (userId != null) {
+        await LocalAuthCache.instance.saveUser(
+          userId: userId,
+          email: email,
+        );
+      }
+    }
+
     return !state.hasError;
   }
 
   /// Registra un nuevo usuario con correo y contraseña.
   /// Retorna true si fue exitoso.
+  /// En caso de éxito guarda el userId + email en LocalAuthCache.
   Future<bool> signUp({
     required String email,
     required String password,
@@ -67,14 +83,30 @@ class AuthNotifier extends _$AuthNotifier {
             password: password,
           ),
     );
+
+    if (!state.hasError) {
+      final userId =
+          ref.read(supabaseClientProvider).auth.currentUser?.id;
+      if (userId != null) {
+        await LocalAuthCache.instance.saveUser(
+          userId: userId,
+          email: email,
+        );
+      }
+    }
+
     return !state.hasError;
   }
 
   /// Cierra la sesión actual.
+  /// Borra LocalAuthCache siempre (incluso si Supabase falla sin internet)
+  /// para que el router redirija a /login.
   Future<void> signOut() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
       () => ref.read(authRepositoryProvider).signOut(),
     );
+    // Limpiar caché local independientemente del resultado de Supabase
+    await LocalAuthCache.instance.clearUser();
   }
 }

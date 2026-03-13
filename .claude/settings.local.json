@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter --version)",
+      "Bash(flutter create . --org com.yeison --project-name control_gastos_app --platforms ios,android)",
+      "Bash(flutter pub get)",
+      "Bash(flutter pub run build_runner build --delete-conflicting-outputs)",
+      "Bash(flutter analyze)",
+      "Bash(flutter pub run flutter_launcher_icons)"
+    ]
+  }
+}

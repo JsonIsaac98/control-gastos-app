@@ -161,7 +161,7 @@ class _MontoField extends StatelessWidget {
         labelText: 'Monto',
         hintText: '0.00',
         prefixIcon: const Icon(Icons.attach_money),
-        prefixText: '\$ ',
+        prefixText: 'Q ',
         prefixStyle: TextStyle(
           fontSize: 16,
           color: Theme.of(context).colorScheme.onSurface,

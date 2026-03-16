@@ -61,6 +61,15 @@ class GastosDelMes extends _$GastosDelMes {
   }
 }
 
+/// Lista de gastos de un mes específico (para uso en reportes y presupuestos).
+/// Acepta un DateTime como parámetro para consultar cualquier mes.
+@riverpod
+Future<List<GastoEntity>> gastosDelMesPorFecha(
+    GastosDelMesPorFechaRef ref, DateTime mes) async {
+  final repository = ref.watch(gastosRepositoryProvider);
+  return repository.getGastosByMonth(mes.year, mes.month);
+}
+
 /// Resumen del dashboard para el mes seleccionado
 @riverpod
 Future<DashboardResumen> dashboardResumen(DashboardResumenRef ref) async {

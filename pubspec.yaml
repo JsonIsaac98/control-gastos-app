@@ -37,6 +37,26 @@ dependencies:
   # Variables de entorno — oculta credenciales fuera del repo
   flutter_dotenv: ^5.2.1
 
+  # Cámara / galería — adjuntar fotos de recibos (desactivado temporalmente)
+  # image_picker: ^1.1.2
+
+  # Notificaciones locales — eliminado temporalmente (desugar_jdk_libs
+  # no resuelve en este entorno de build Android; se reactivará cuando
+  # se solucione la compatibilidad con AGP 8.11.1 + Gradle 8.14)
+
+  # Generación y previsualización de PDF — reportes
+  pdf: ^3.11.1
+  printing: ^5.13.2
+
+  # Compartir archivos (PDF export)
+  share_plus: ^10.0.3
+
+  # Gráficas — reportes visuales
+  fl_chart: ^0.69.0
+
+  # UUIDs reales para presupuestos y categorías offline
+  uuid: ^4.5.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

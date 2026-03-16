@@ -14,7 +14,14 @@ class MainShellPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).uri.toString();
-    final currentIndex = location.startsWith('/historial') ? 1 : 0;
+    final int currentIndex;
+    if (location.startsWith('/historial')) {
+      currentIndex = 1;
+    } else if (location.startsWith('/reportes')) {
+      currentIndex = 2;
+    } else {
+      currentIndex = 0;
+    }
 
     return Scaffold(
       body: child,
@@ -26,6 +33,8 @@ class MainShellPage extends ConsumerWidget {
               context.go('/dashboard');
             case 1:
               context.go('/historial');
+            case 2:
+              context.go('/reportes');
           }
         },
         destinations: const [
@@ -39,6 +48,11 @@ class MainShellPage extends ConsumerWidget {
             selectedIcon: Icon(Icons.list_alt),
             label: 'Historial',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: 'Reportes',
+          ),
         ],
       ),
       floatingActionButton: Column(
@@ -46,10 +60,10 @@ class MainShellPage extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           FloatingActionButton.small(
-            heroTag: 'fab_presupuestos',
-            onPressed: () => context.push('/presupuestos'),
-            tooltip: 'Presupuestos',
-            child: const Icon(Icons.account_balance_wallet_outlined),
+            heroTag: 'fab_settings',
+            onPressed: () => context.push('/settings'),
+            tooltip: 'Configuración',
+            child: const Icon(Icons.settings_outlined),
           ),
           const SizedBox(height: 8),
           FloatingActionButton.extended(

@@ -29,6 +29,8 @@ class GastoEntity {
     this.supabaseId,
     // Categoría (schema v4)
     this.categoriaId,
+    // Foto de recibo (schema v5)
+    this.fotoUrl,
   });
 
   final int? id;
@@ -43,6 +45,8 @@ class GastoEntity {
   final String? supabaseId;
   /// UUID de la categoría asignada. Null si no tiene categoría.
   final String? categoriaId;
+  /// URL de Supabase Storage de la foto del recibo. Null si no tiene foto.
+  final String? fotoUrl;
 
   GastoEntity copyWith({
     int? id,
@@ -54,6 +58,7 @@ class GastoEntity {
     bool? isSynced,
     String? supabaseId,
     String? categoriaId,
+    String? fotoUrl,
   }) {
     return GastoEntity(
       id: id ?? this.id,
@@ -65,6 +70,7 @@ class GastoEntity {
       isSynced: isSynced ?? this.isSynced,
       supabaseId: supabaseId ?? this.supabaseId,
       categoriaId: categoriaId ?? this.categoriaId,
+      fotoUrl: fotoUrl ?? this.fotoUrl,
     );
   }
 
@@ -72,5 +78,5 @@ class GastoEntity {
   String toString() =>
       'GastoEntity(id: $id, descripcion: $descripcion, monto: $monto, '
       'tipoPago: ${tipoPago.label}, fecha: $fecha, '
-      'isSynced: $isSynced, supabaseId: $supabaseId, categoriaId: $categoriaId)';
+      'isSynced: $isSynced, supabaseId: $supabaseId, categoriaId: $categoriaId, fotoUrl: $fotoUrl)';
 }

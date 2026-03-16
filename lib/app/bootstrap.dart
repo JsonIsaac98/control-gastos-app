@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/services/local_auth_cache.dart';
+import '../core/services/notification_service.dart';
 import 'app.dart';
 
 Future<void> bootstrap() async {
@@ -18,12 +19,15 @@ Future<void> bootstrap() async {
     // debug: true, // habilitar solo en desarrollo
   );
 
-  // 3. Cargar caché de sesión local (userId + email, sin contraseña).
+  // 3. Inicializar notificaciones locales (alertas de presupuesto).
+  await NotificationService.instance.initialize();
+
+  // 4. Cargar caché de sesión local (userId + email, sin contraseña).
   //    Se carga ANTES de runApp para que el router ya conozca el estado
   //    de autenticación offline desde el primer frame.
   await LocalAuthCache.instance.loadFromPrefs();
 
-  // 4. Lanzar la app dentro de ProviderScope (único en toda la app)
+  // 5. Lanzar la app dentro de ProviderScope (único en toda la app)
   runApp(
     const ProviderScope(
       child: App(),

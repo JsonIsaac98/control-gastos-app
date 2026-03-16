@@ -9,6 +9,12 @@ import '../../../categorias/providers/categorias_provider.dart';
 import '../../domain/entities/gasto_entity.dart';
 import '../../providers/gastos_provider.dart';
 
+// TODO: imports de foto desactivados temporalmente
+// import 'dart:io';
+// import 'package:image_picker/image_picker.dart';
+// import 'package:supabase_flutter/supabase_flutter.dart';
+// import '../../providers/receipt_storage_provider.dart';
+
 class AddGastoPage extends ConsumerStatefulWidget {
   const AddGastoPage({super.key});
 
@@ -25,6 +31,9 @@ class _AddGastoPageState extends ConsumerState<AddGastoPage> {
   DateTime _fecha = DateTime.now();
   String? _categoriaId;
   bool _guardando = false;
+  // TODO: estado de foto desactivado temporalmente
+  // File? _fotoFile;
+  // String? _fotoUrl;
 
   @override
   void dispose() {
@@ -124,6 +133,19 @@ class _AddGastoPageState extends ConsumerState<AddGastoPage> {
               fecha: _fecha,
               onChanged: (fecha) => setState(() => _fecha = fecha),
             ),
+
+            // TODO: sección foto desactivada temporalmente
+            // const SizedBox(height: 20),
+            // _FotoReciboSection(
+            //   fotoFile: _fotoFile,
+            //   fotoUrl: _fotoUrl,
+            //   onFotoSelected: (file) => setState(() {
+            //     _fotoFile = file; _fotoUrl = null;
+            //   }),
+            //   onFotoRemoved: () => setState(() {
+            //     _fotoFile = null; _fotoUrl = null;
+            //   }),
+            // ),
             const SizedBox(height: 32),
 
             // Botón guardar
@@ -158,12 +180,17 @@ class _AddGastoPageState extends ConsumerState<AddGastoPage> {
           ) ??
           0;
 
+      // TODO: upload de foto desactivado temporalmente
+      // String? uploadedFotoUrl = _fotoUrl;
+      // if (_fotoFile != null) { ... }
+
       final gasto = GastoEntity(
         descripcion: _descripcionController.text.trim(),
         monto: monto,
         tipoPago: _tipoPago,
         fecha: _fecha,
         categoriaId: _categoriaId,
+        fotoUrl: null, // TODO: reactivar con uploadedFotoUrl
       );
 
       await ref.read(gastosDelMesProvider.notifier).addGasto(gasto);
@@ -322,3 +349,93 @@ class _FechaField extends StatelessWidget {
     }
   }
 }
+
+// TODO: _FotoReciboSection desactivada temporalmente.
+// Para reactivar: descomentar, añadir image_picker en pubspec.yaml y
+// restaurar los imports de dart:io, image_picker y receipt_storage_provider.
+
+/*
+class _FotoReciboSection extends StatelessWidget {
+  const _FotoReciboSection({
+    required this.fotoFile,
+    required this.fotoUrl,
+    required this.onFotoSelected,
+    required this.onFotoRemoved,
+  });
+
+  final File? fotoFile;
+  final String? fotoUrl;
+  final ValueChanged<File> onFotoSelected;
+  final VoidCallback onFotoRemoved;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPhoto = fotoFile != null || fotoUrl != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Foto del recibo (opcional)',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+        const SizedBox(height: 8),
+        if (hasPhoto)
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: fotoFile != null
+                    ? Image.file(fotoFile!,
+                        height: 160, width: double.infinity, fit: BoxFit.cover)
+                    : Image.network(fotoUrl!,
+                        height: 160, width: double.infinity, fit: BoxFit.cover),
+              ),
+              Positioned(
+                top: 4,
+                right: 4,
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.black54,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, size: 16, color: Colors.white),
+                    onPressed: onFotoRemoved,
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickImage(context, ImageSource.camera),
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  label: const Text('Cámara'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickImage(context, ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('Galería'),
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Future<void> _pickImage(BuildContext context, ImageSource source) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+        source: source, imageQuality: 80, maxWidth: 1200);
+    if (picked != null) onFotoSelected(File(picked.path));
+  }
+}
+*/

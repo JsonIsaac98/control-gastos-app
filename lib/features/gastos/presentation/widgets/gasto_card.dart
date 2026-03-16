@@ -77,6 +77,12 @@ class GastoCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         TipoPagoChip(tipoPago: gasto.tipoPago, small: true),
+                        // TODO: ícono de foto desactivado temporalmente
+                        // if (gasto.fotoUrl != null) ...[
+                        //   const SizedBox(width: 6),
+                        //   Icon(Icons.photo_camera, size: 14,
+                        //       color: colorScheme.onSurfaceVariant),
+                        // ],
                       ],
                     ),
                   ],

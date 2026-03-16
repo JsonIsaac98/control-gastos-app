@@ -42,6 +42,10 @@ class GastosTable extends Table {
   // ── Categoría (schema v4) ─────────────────────────────────────
   /// UUID de la categoría asignada (FK a categorias.id). Nullable.
   TextColumn get categoriaId => text().nullable()();
+
+  // ── Foto de recibo (schema v5) ─────────────────────────────────
+  /// URL de Supabase Storage de la foto del recibo. Nullable.
+  TextColumn get fotoUrl => text().nullable()();
 }
 
 // ----------------------------------------------------------------
@@ -87,7 +91,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   /// Migración incremental: solo toca lo que cambió entre versiones.
   @override
@@ -108,6 +112,10 @@ class AppDatabase extends _$AppDatabase {
             await migrator.createTable(categoriasTable);
             await migrator.createTable(presupuestosTable);
             await migrator.addColumn(gastosTable, gastosTable.categoriaId);
+          }
+          // v4 → v5: foto del recibo en gastos
+          if (from < 5) {
+            await migrator.addColumn(gastosTable, gastosTable.fotoUrl);
           }
         },
       );

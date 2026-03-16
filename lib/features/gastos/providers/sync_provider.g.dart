@@ -22,7 +22,7 @@ final syncServiceProvider = Provider<SyncService>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef SyncServiceRef = ProviderRef<SyncService>;
-String _$syncNotifierHash() => r'f1ff476569a18870dd318e39b9842e3a8d1e900c';
+String _$syncNotifierHash() => r'08b9d721c5060085c57746d49d906fed64c78d98';
 
 /// Estado: AsyncValue<SyncResult?>
 ///   - data(null)         → sin sincronización reciente

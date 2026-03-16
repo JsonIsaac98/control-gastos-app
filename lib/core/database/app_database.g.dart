@@ -83,6 +83,12 @@ class $GastosTableTable extends GastosTable
   late final GeneratedColumn<String> categoriaId = GeneratedColumn<String>(
       'categoria_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _fotoUrlMeta =
+      const VerificationMeta('fotoUrl');
+  @override
+  late final GeneratedColumn<String> fotoUrl = GeneratedColumn<String>(
+      'foto_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -94,7 +100,8 @@ class $GastosTableTable extends GastosTable
         isSynced,
         supabaseId,
         pendingDelete,
-        categoriaId
+        categoriaId,
+        fotoUrl
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -161,6 +168,10 @@ class $GastosTableTable extends GastosTable
           categoriaId.isAcceptableOrUnknown(
               data['categoria_id']!, _categoriaIdMeta));
     }
+    if (data.containsKey('foto_url')) {
+      context.handle(_fotoUrlMeta,
+          fotoUrl.isAcceptableOrUnknown(data['foto_url']!, _fotoUrlMeta));
+    }
     return context;
   }
 
@@ -190,6 +201,8 @@ class $GastosTableTable extends GastosTable
           .read(DriftSqlType.bool, data['${effectivePrefix}pending_delete'])!,
       categoriaId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}categoria_id']),
+      fotoUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}foto_url']),
     );
   }
 
@@ -221,6 +234,9 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
 
   /// UUID de la categoría asignada (FK a categorias.id). Nullable.
   final String? categoriaId;
+
+  /// URL de Supabase Storage de la foto del recibo. Nullable.
+  final String? fotoUrl;
   const GastosTableData(
       {required this.id,
       required this.descripcion,
@@ -231,7 +247,8 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
       required this.isSynced,
       this.supabaseId,
       required this.pendingDelete,
-      this.categoriaId});
+      this.categoriaId,
+      this.fotoUrl});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -248,6 +265,9 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
     map['pending_delete'] = Variable<bool>(pendingDelete);
     if (!nullToAbsent || categoriaId != null) {
       map['categoria_id'] = Variable<String>(categoriaId);
+    }
+    if (!nullToAbsent || fotoUrl != null) {
+      map['foto_url'] = Variable<String>(fotoUrl);
     }
     return map;
   }
@@ -268,6 +288,9 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
       categoriaId: categoriaId == null && nullToAbsent
           ? const Value.absent()
           : Value(categoriaId),
+      fotoUrl: fotoUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fotoUrl),
     );
   }
 
@@ -285,6 +308,7 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
       supabaseId: serializer.fromJson<String?>(json['supabaseId']),
       pendingDelete: serializer.fromJson<bool>(json['pendingDelete']),
       categoriaId: serializer.fromJson<String?>(json['categoriaId']),
+      fotoUrl: serializer.fromJson<String?>(json['fotoUrl']),
     );
   }
   @override
@@ -301,6 +325,7 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
       'supabaseId': serializer.toJson<String?>(supabaseId),
       'pendingDelete': serializer.toJson<bool>(pendingDelete),
       'categoriaId': serializer.toJson<String?>(categoriaId),
+      'fotoUrl': serializer.toJson<String?>(fotoUrl),
     };
   }
 
@@ -314,7 +339,8 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
           bool? isSynced,
           Value<String?> supabaseId = const Value.absent(),
           bool? pendingDelete,
-          Value<String?> categoriaId = const Value.absent()}) =>
+          Value<String?> categoriaId = const Value.absent(),
+          Value<String?> fotoUrl = const Value.absent()}) =>
       GastosTableData(
         id: id ?? this.id,
         descripcion: descripcion ?? this.descripcion,
@@ -326,6 +352,7 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
         supabaseId: supabaseId.present ? supabaseId.value : this.supabaseId,
         pendingDelete: pendingDelete ?? this.pendingDelete,
         categoriaId: categoriaId.present ? categoriaId.value : this.categoriaId,
+        fotoUrl: fotoUrl.present ? fotoUrl.value : this.fotoUrl,
       );
   GastosTableData copyWithCompanion(GastosTableCompanion data) {
     return GastosTableData(
@@ -344,6 +371,7 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
           : this.pendingDelete,
       categoriaId:
           data.categoriaId.present ? data.categoriaId.value : this.categoriaId,
+      fotoUrl: data.fotoUrl.present ? data.fotoUrl.value : this.fotoUrl,
     );
   }
 
@@ -359,14 +387,15 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
           ..write('isSynced: $isSynced, ')
           ..write('supabaseId: $supabaseId, ')
           ..write('pendingDelete: $pendingDelete, ')
-          ..write('categoriaId: $categoriaId')
+          ..write('categoriaId: $categoriaId, ')
+          ..write('fotoUrl: $fotoUrl')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(id, descripcion, monto, tipoPago, fecha,
-      createdAt, isSynced, supabaseId, pendingDelete, categoriaId);
+      createdAt, isSynced, supabaseId, pendingDelete, categoriaId, fotoUrl);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -380,7 +409,8 @@ class GastosTableData extends DataClass implements Insertable<GastosTableData> {
           other.isSynced == this.isSynced &&
           other.supabaseId == this.supabaseId &&
           other.pendingDelete == this.pendingDelete &&
-          other.categoriaId == this.categoriaId);
+          other.categoriaId == this.categoriaId &&
+          other.fotoUrl == this.fotoUrl);
 }
 
 class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
@@ -394,6 +424,7 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
   final Value<String?> supabaseId;
   final Value<bool> pendingDelete;
   final Value<String?> categoriaId;
+  final Value<String?> fotoUrl;
   const GastosTableCompanion({
     this.id = const Value.absent(),
     this.descripcion = const Value.absent(),
@@ -405,6 +436,7 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
     this.supabaseId = const Value.absent(),
     this.pendingDelete = const Value.absent(),
     this.categoriaId = const Value.absent(),
+    this.fotoUrl = const Value.absent(),
   });
   GastosTableCompanion.insert({
     this.id = const Value.absent(),
@@ -417,6 +449,7 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
     this.supabaseId = const Value.absent(),
     this.pendingDelete = const Value.absent(),
     this.categoriaId = const Value.absent(),
+    this.fotoUrl = const Value.absent(),
   })  : descripcion = Value(descripcion),
         monto = Value(monto),
         tipoPago = Value(tipoPago),
@@ -432,6 +465,7 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
     Expression<String>? supabaseId,
     Expression<bool>? pendingDelete,
     Expression<String>? categoriaId,
+    Expression<String>? fotoUrl,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -444,6 +478,7 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
       if (supabaseId != null) 'supabase_id': supabaseId,
       if (pendingDelete != null) 'pending_delete': pendingDelete,
       if (categoriaId != null) 'categoria_id': categoriaId,
+      if (fotoUrl != null) 'foto_url': fotoUrl,
     });
   }
 
@@ -457,7 +492,8 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
       Value<bool>? isSynced,
       Value<String?>? supabaseId,
       Value<bool>? pendingDelete,
-      Value<String?>? categoriaId}) {
+      Value<String?>? categoriaId,
+      Value<String?>? fotoUrl}) {
     return GastosTableCompanion(
       id: id ?? this.id,
       descripcion: descripcion ?? this.descripcion,
@@ -469,6 +505,7 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
       supabaseId: supabaseId ?? this.supabaseId,
       pendingDelete: pendingDelete ?? this.pendingDelete,
       categoriaId: categoriaId ?? this.categoriaId,
+      fotoUrl: fotoUrl ?? this.fotoUrl,
     );
   }
 
@@ -505,6 +542,9 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
     if (categoriaId.present) {
       map['categoria_id'] = Variable<String>(categoriaId.value);
     }
+    if (fotoUrl.present) {
+      map['foto_url'] = Variable<String>(fotoUrl.value);
+    }
     return map;
   }
 
@@ -520,7 +560,8 @@ class GastosTableCompanion extends UpdateCompanion<GastosTableData> {
           ..write('isSynced: $isSynced, ')
           ..write('supabaseId: $supabaseId, ')
           ..write('pendingDelete: $pendingDelete, ')
-          ..write('categoriaId: $categoriaId')
+          ..write('categoriaId: $categoriaId, ')
+          ..write('fotoUrl: $fotoUrl')
           ..write(')'))
         .toString();
   }
@@ -1255,6 +1296,7 @@ typedef $$GastosTableTableCreateCompanionBuilder = GastosTableCompanion
   Value<String?> supabaseId,
   Value<bool> pendingDelete,
   Value<String?> categoriaId,
+  Value<String?> fotoUrl,
 });
 typedef $$GastosTableTableUpdateCompanionBuilder = GastosTableCompanion
     Function({
@@ -1268,6 +1310,7 @@ typedef $$GastosTableTableUpdateCompanionBuilder = GastosTableCompanion
   Value<String?> supabaseId,
   Value<bool> pendingDelete,
   Value<String?> categoriaId,
+  Value<String?> fotoUrl,
 });
 
 class $$GastosTableTableFilterComposer
@@ -1308,6 +1351,9 @@ class $$GastosTableTableFilterComposer
 
   ColumnFilters<String> get categoriaId => $composableBuilder(
       column: $table.categoriaId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get fotoUrl => $composableBuilder(
+      column: $table.fotoUrl, builder: (column) => ColumnFilters(column));
 }
 
 class $$GastosTableTableOrderingComposer
@@ -1349,6 +1395,9 @@ class $$GastosTableTableOrderingComposer
 
   ColumnOrderings<String> get categoriaId => $composableBuilder(
       column: $table.categoriaId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get fotoUrl => $composableBuilder(
+      column: $table.fotoUrl, builder: (column) => ColumnOrderings(column));
 }
 
 class $$GastosTableTableAnnotationComposer
@@ -1389,6 +1438,9 @@ class $$GastosTableTableAnnotationComposer
 
   GeneratedColumn<String> get categoriaId => $composableBuilder(
       column: $table.categoriaId, builder: (column) => column);
+
+  GeneratedColumn<String> get fotoUrl =>
+      $composableBuilder(column: $table.fotoUrl, builder: (column) => column);
 }
 
 class $$GastosTableTableTableManager extends RootTableManager<
@@ -1427,6 +1479,7 @@ class $$GastosTableTableTableManager extends RootTableManager<
             Value<String?> supabaseId = const Value.absent(),
             Value<bool> pendingDelete = const Value.absent(),
             Value<String?> categoriaId = const Value.absent(),
+            Value<String?> fotoUrl = const Value.absent(),
           }) =>
               GastosTableCompanion(
             id: id,
@@ -1439,6 +1492,7 @@ class $$GastosTableTableTableManager extends RootTableManager<
             supabaseId: supabaseId,
             pendingDelete: pendingDelete,
             categoriaId: categoriaId,
+            fotoUrl: fotoUrl,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -1451,6 +1505,7 @@ class $$GastosTableTableTableManager extends RootTableManager<
             Value<String?> supabaseId = const Value.absent(),
             Value<bool> pendingDelete = const Value.absent(),
             Value<String?> categoriaId = const Value.absent(),
+            Value<String?> fotoUrl = const Value.absent(),
           }) =>
               GastosTableCompanion.insert(
             id: id,
@@ -1463,6 +1518,7 @@ class $$GastosTableTableTableManager extends RootTableManager<
             supabaseId: supabaseId,
             pendingDelete: pendingDelete,
             categoriaId: categoriaId,
+            fotoUrl: fotoUrl,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

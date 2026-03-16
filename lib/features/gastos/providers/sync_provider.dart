@@ -71,6 +71,7 @@ class SyncNotifier extends _$SyncNotifier {
       ref.invalidate(gastosDelMesProvider);
       ref.invalidate(dashboardResumenProvider);
       ref.invalidate(categoriasProvider);
+      ref.invalidate(presupuestosMesProvider);
     }
   }
 

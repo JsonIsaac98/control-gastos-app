@@ -12,6 +12,9 @@ import '../../features/gastos/presentation/pages/dashboard_page.dart';
 import '../../features/gastos/presentation/pages/gastos_list_page.dart';
 import '../../features/gastos/presentation/pages/main_shell_page.dart';
 import '../../features/presupuestos/presentation/pages/presupuestos_page.dart';
+import '../../features/reportes/presentation/pages/reportes_page.dart';
+import '../../features/settings/presentation/pages/categorias_settings_page.dart';
+import '../../features/settings/presentation/pages/settings_page.dart';
 import '../providers/supabase_provider.dart';
 import '../services/local_auth_cache.dart';
 
@@ -107,6 +110,12 @@ GoRouter appRouter(AppRouterRef ref) {
               child: GastosListPage(),
             ),
           ),
+          GoRoute(
+            path: '/reportes',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: ReportesPage(),
+            ),
+          ),
         ],
       ),
       GoRoute(
@@ -116,6 +125,14 @@ GoRouter appRouter(AppRouterRef ref) {
       GoRoute(
         path: '/presupuestos',
         builder: (context, state) => const PresupuestosPage(),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: '/settings/categorias',
+        builder: (context, state) => const CategoriasSettingsPage(),
       ),
     ],
   );

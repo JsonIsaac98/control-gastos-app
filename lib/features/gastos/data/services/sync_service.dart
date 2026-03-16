@@ -5,6 +5,7 @@ import '../../../../features/categorias/data/datasources/categorias_remote_datas
 import '../../../../features/categorias/domain/entities/categoria_entity.dart';
 import '../../../../features/presupuestos/data/datasources/presupuestos_local_datasource.dart';
 import '../../../../features/presupuestos/data/datasources/presupuestos_remote_datasource.dart';
+import '../../../../features/presupuestos/domain/entities/presupuesto_entity.dart';
 import '../datasources/gastos_local_datasource.dart';
 import '../datasources/gastos_remote_datasource.dart';
 
@@ -234,6 +235,45 @@ class SyncService {
         stackTrace: stack,
       );
       pullFailed++;
+    }
+
+    // ── Fase 3: Sync presupuestos ──────────────────────────────
+    try {
+      // Push unsynced presupuestos
+      final unsyncedPresupuestos =
+          await presupuestosLocal.getUnsyncedPresupuestos();
+      for (final p in unsyncedPresupuestos) {
+        try {
+          await presupuestosRemote.upsertPresupuesto(p, userId);
+          await presupuestosLocal.markAsSynced(p.id);
+          logger.d('SyncService: ✅ Presupuesto ${p.id} sincronizado');
+        } catch (e, st) {
+          logger.e('SyncService: ❌ Error sync presupuesto',
+              error: e, stackTrace: st);
+        }
+      }
+      // Pull presupuestos del mes actual y siguiente
+      final now = DateTime.now();
+      for (final mes in [
+        DateTime(now.year, now.month),
+        DateTime(now.year, now.month + 1),
+      ]) {
+        final remotePresupuestos =
+            await presupuestosRemote.fetchPresupuestosByMes(userId, mes);
+        for (final rp in remotePresupuestos) {
+          await presupuestosLocal.upsertPresupuesto(PresupuestoEntity(
+            id: rp['id'] as String,
+            userId: rp['user_id'] as String,
+            categoriaId: rp['categoria_id'] as String?,
+            montoLimite: (rp['monto_limite'] as num).toDouble(),
+            mes: DateTime.parse(rp['mes'] as String),
+            isSynced: true,
+          ));
+        }
+      }
+      logger.i('SyncService: Presupuestos sincronizados');
+    } catch (e, st) {
+      logger.e('SyncService: Error sync presupuestos', error: e, stackTrace: st);
     }
 
     return SyncResult(

@@ -1,5 +1,10 @@
 import 'package:logger/logger.dart';
 
+import '../../../../features/categorias/data/datasources/categorias_local_datasource.dart';
+import '../../../../features/categorias/data/datasources/categorias_remote_datasource.dart';
+import '../../../../features/categorias/domain/entities/categoria_entity.dart';
+import '../../../../features/presupuestos/data/datasources/presupuestos_local_datasource.dart';
+import '../../../../features/presupuestos/data/datasources/presupuestos_remote_datasource.dart';
 import '../datasources/gastos_local_datasource.dart';
 import '../datasources/gastos_remote_datasource.dart';
 
@@ -54,11 +59,19 @@ class SyncService {
     required this.localDatasource,
     required this.remoteDatasource,
     required this.logger,
+    required this.categoriasLocal,
+    required this.categoriasRemote,
+    required this.presupuestosLocal,
+    required this.presupuestosRemote,
   });
 
   final GastosLocalDatasource localDatasource;
   final GastosRemoteDatasource remoteDatasource;
   final Logger logger;
+  final CategoriasLocalDatasource categoriasLocal;
+  final CategoriasRemoteDatasource categoriasRemote;
+  final PresupuestosLocalDatasource presupuestosLocal;
+  final PresupuestosRemoteDatasource presupuestosRemote;
 
   /// Ejecuta el ciclo completo de sincronización para [userId].
   ///
@@ -119,15 +132,32 @@ class SyncService {
   // ----------------------------------------------------------------
   // Sincronización bidireccional completa
   // ----------------------------------------------------------------
-  /// Ejecuta las tres fases de sincronización en orden:
-  ///   0. **Delete** — elimina de Supabase los gastos con [pendingDelete]=true,
-  ///      luego los borra físicamente de SQLite.
+  /// Ejecuta las fases de sincronización en orden:
+  ///  -1. **Categorías** — pull de categorías del sistema + usuario.
+  ///   0. **Delete** — elimina de Supabase los gastos con [pendingDelete]=true.
   ///   1. **Push**   — sube gastos locales no sincronizados → Supabase.
   ///   2. **Pull**   — descarga gastos de Supabase que no existen localmente.
-  ///
-  /// El orden importa: las eliminaciones van primero para que el pull
-  /// no vuelva a insertar registros que el usuario ya borró.
   Future<SyncResult> fullSync(String userId) async {
+    // ── Fase -1: Sync categorías (pull only) ──────────────────────
+    try {
+      final remoteCats = await categoriasRemote.fetchCategorias(userId);
+      for (final cat in remoteCats) {
+        await categoriasLocal.upsertCategoria(CategoriaEntity(
+          id: cat['id'] as String,
+          userId: cat['user_id'] as String?,
+          nombre: cat['nombre'] as String,
+          icono: cat['icono'] as String?,
+          color: cat['color'] as String?,
+          esDefault: cat['es_default'] as bool? ?? false,
+        ));
+      }
+      logger.i(
+          'SyncService: Categorías sincronizadas: ${remoteCats.length}');
+    } catch (e, st) {
+      logger.e('SyncService: Error sync categorías',
+          error: e, stackTrace: st);
+    }
+
     // ── Fase 0: Eliminaciones (pendingDelete → Supabase → SQLite) ──
     int deleted = 0;
     int deleteFailed = 0;

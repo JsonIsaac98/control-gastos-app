@@ -73,11 +73,21 @@ Future<DashboardResumen> dashboardResumen(DashboardResumenRef ref) async {
   final gastos =
       await repository.getGastosByMonth(month.year, month.month);
 
+  // Calcular total por categoría
+  final Map<String, double> porCategoria = {};
+  for (final g in gastos) {
+    if (g.categoriaId != null) {
+      porCategoria[g.categoriaId!] =
+          (porCategoria[g.categoriaId!] ?? 0.0) + g.monto;
+    }
+  }
+
   return DashboardResumen(
     totalMes: total,
     totalPorTipo: porTipo,
     ultimos: gastos.take(5).toList(),
     cantidadGastos: gastos.length,
+    totalPorCategoria: porCategoria,
   );
 }
 
@@ -87,10 +97,13 @@ class DashboardResumen {
     required this.totalPorTipo,
     required this.ultimos,
     required this.cantidadGastos,
+    this.totalPorCategoria = const {},
   });
 
   final double totalMes;
   final Map<TipoPago, double> totalPorTipo;
   final List<GastoEntity> ultimos;
   final int cantidadGastos;
+  /// Mapa de categoriaId → total gastado en el mes
+  final Map<String, double> totalPorCategoria;
 }

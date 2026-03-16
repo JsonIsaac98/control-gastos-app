@@ -27,6 +27,8 @@ class GastoEntity {
     // Campos de sincronización con Supabase
     this.isSynced = false,
     this.supabaseId,
+    // Categoría (schema v4)
+    this.categoriaId,
   });
 
   final int? id;
@@ -39,6 +41,8 @@ class GastoEntity {
   final bool isSynced;
   /// UUID asignado por Supabase. Null hasta la primera sincronización.
   final String? supabaseId;
+  /// UUID de la categoría asignada. Null si no tiene categoría.
+  final String? categoriaId;
 
   GastoEntity copyWith({
     int? id,
@@ -49,6 +53,7 @@ class GastoEntity {
     DateTime? createdAt,
     bool? isSynced,
     String? supabaseId,
+    String? categoriaId,
   }) {
     return GastoEntity(
       id: id ?? this.id,
@@ -59,6 +64,7 @@ class GastoEntity {
       createdAt: createdAt ?? this.createdAt,
       isSynced: isSynced ?? this.isSynced,
       supabaseId: supabaseId ?? this.supabaseId,
+      categoriaId: categoriaId ?? this.categoriaId,
     );
   }
 
@@ -66,5 +72,5 @@ class GastoEntity {
   String toString() =>
       'GastoEntity(id: $id, descripcion: $descripcion, monto: $monto, '
       'tipoPago: ${tipoPago.label}, fecha: $fecha, '
-      'isSynced: $isSynced, supabaseId: $supabaseId)';
+      'isSynced: $isSynced, supabaseId: $supabaseId, categoriaId: $categoriaId)';
 }

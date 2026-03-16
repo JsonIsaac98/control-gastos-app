@@ -11,6 +11,7 @@ import '../../features/gastos/presentation/pages/add_gasto_page.dart';
 import '../../features/gastos/presentation/pages/dashboard_page.dart';
 import '../../features/gastos/presentation/pages/gastos_list_page.dart';
 import '../../features/gastos/presentation/pages/main_shell_page.dart';
+import '../../features/presupuestos/presentation/pages/presupuestos_page.dart';
 import '../providers/supabase_provider.dart';
 import '../services/local_auth_cache.dart';
 
@@ -111,6 +112,10 @@ GoRouter appRouter(AppRouterRef ref) {
       GoRoute(
         path: '/agregar',
         builder: (context, state) => const AddGastoPage(),
+      ),
+      GoRoute(
+        path: '/presupuestos',
+        builder: (context, state) => const PresupuestosPage(),
       ),
     ],
   );

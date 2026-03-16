@@ -66,6 +66,7 @@ class GastosLocalDatasource {
             createdAt: Value(now),
             // Siempre inicia como no sincronizado
             isSynced: const Value(false),
+            categoriaId: Value(gasto.categoriaId),
           ),
         );
     return gasto.copyWith(id: id, createdAt: now, isSynced: false);
@@ -113,6 +114,7 @@ class GastosLocalDatasource {
         isSynced: const Value(false),
         // Conserva el supabaseId para hacer upsert en el próximo sync
         supabaseId: Value(gasto.supabaseId),
+        categoriaId: Value(gasto.categoriaId),
       ),
     );
   }
@@ -197,6 +199,7 @@ class GastosLocalDatasource {
             ),
             isSynced: const Value(true),
             supabaseId: Value(data['id'] as String),
+            categoriaId: Value(data['categoria_id'] as String?),
           ),
         );
   }
@@ -211,6 +214,7 @@ class GastosLocalDatasource {
       createdAt: row.createdAt,
       isSynced: row.isSynced,
       supabaseId: row.supabaseId,
+      categoriaId: row.categoriaId,
     );
   }
 }

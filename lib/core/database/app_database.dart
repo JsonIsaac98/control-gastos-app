@@ -38,14 +38,56 @@ class GastosTable extends Table {
   /// físicamente de SQLite.  Permanece oculto en todas las queries.
   BoolColumn get pendingDelete =>
       boolean().withDefault(const Constant(false))();
+
+  // ── Categoría (schema v4) ─────────────────────────────────────
+  /// UUID de la categoría asignada (FK a categorias.id). Nullable.
+  TextColumn get categoriaId => text().nullable()();
 }
 
-@DriftDatabase(tables: [GastosTable])
+// ----------------------------------------------------------------
+// Tabla de categorías (schema v4)
+// ----------------------------------------------------------------
+class CategoriasTable extends Table {
+  @override
+  String get tableName => 'categorias';
+
+  TextColumn get id => text()();
+  TextColumn get userId => text().nullable()(); // null = categoría por defecto
+  TextColumn get nombre => text()();
+  TextColumn get icono => text().nullable()(); // emoji
+  TextColumn get color => text().nullable()(); // hex color (#RRGGBB)
+  BoolColumn get esDefault =>
+      boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+// ----------------------------------------------------------------
+// Tabla de presupuestos (schema v4)
+// ----------------------------------------------------------------
+class PresupuestosTable extends Table {
+  @override
+  String get tableName => 'presupuestos';
+
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get categoriaId => text().nullable()(); // FK a categorias.id
+  RealColumn get montoLimite => real()();
+  DateTimeColumn get mes => dateTime()(); // primer día del mes
+  BoolColumn get isSynced =>
+      boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [GastosTable, CategoriasTable, PresupuestosTable])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   /// Migración incremental: solo toca lo que cambió entre versiones.
   @override
@@ -60,6 +102,12 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) {
             await migrator.addColumn(
                 gastosTable, gastosTable.pendingDelete);
+          }
+          // v3 → v4: categorías, presupuestos y categoriaId en gastos
+          if (from < 4) {
+            await migrator.createTable(categoriasTable);
+            await migrator.createTable(presupuestosTable);
+            await migrator.addColumn(gastosTable, gastosTable.categoriaId);
           }
         },
       );

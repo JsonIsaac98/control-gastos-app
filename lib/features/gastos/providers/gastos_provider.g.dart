@@ -6,7 +6,7 @@ part of 'gastos_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$dashboardResumenHash() => r'db7ac9b71f4d18e79ed5b36c6a36bfaf53ac53d8';
+String _$dashboardResumenHash() => r'3ec19d2f93512fbb90dcb496e557dd909e820e65';
 
 /// Resumen del dashboard para el mes seleccionado
 ///

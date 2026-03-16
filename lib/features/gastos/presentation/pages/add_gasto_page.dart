@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/extensions/date_extensions.dart';
+import '../../../categorias/presentation/widgets/categoria_chip.dart';
+import '../../../categorias/providers/categorias_provider.dart';
 import '../../domain/entities/gasto_entity.dart';
 import '../../providers/gastos_provider.dart';
 
@@ -21,6 +23,7 @@ class _AddGastoPageState extends ConsumerState<AddGastoPage> {
 
   TipoPago _tipoPago = TipoPago.efectivo;
   DateTime _fecha = DateTime.now();
+  String? _categoriaId;
   bool _guardando = false;
 
   @override
@@ -32,6 +35,8 @@ class _AddGastoPageState extends ConsumerState<AddGastoPage> {
 
   @override
   Widget build(BuildContext context) {
+    final categoriasAsync = ref.watch(categoriasProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nuevo Gasto'),
@@ -72,6 +77,45 @@ class _AddGastoPageState extends ConsumerState<AddGastoPage> {
             _TipoPagoSelector(
               selected: _tipoPago,
               onChanged: (tipo) => setState(() => _tipoPago = tipo),
+            ),
+            const SizedBox(height: 20),
+
+            // Categoría (opcional)
+            Text(
+              'Categoría (opcional)',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            categoriasAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (cats) => cats.isEmpty
+                  ? Text(
+                      'Sin categorías. Sincroniza para cargarlas.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                    )
+                  : Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: cats
+                          .map(
+                            (c) => CategoriaChip(
+                              categoria: c,
+                              isSelected: _categoriaId == c.id,
+                              onTap: () => setState(() {
+                                _categoriaId =
+                                    _categoriaId == c.id ? null : c.id;
+                              }),
+                            ),
+                          )
+                          .toList(),
+                    ),
             ),
             const SizedBox(height: 20),
 
@@ -119,6 +163,7 @@ class _AddGastoPageState extends ConsumerState<AddGastoPage> {
         monto: monto,
         tipoPago: _tipoPago,
         fecha: _fecha,
+        categoriaId: _categoriaId,
       );
 
       await ref.read(gastosDelMesProvider.notifier).addGasto(gasto);

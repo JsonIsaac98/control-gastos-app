@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/providers/logger_provider.dart';
 import '../../../core/services/local_auth_cache.dart';
+import '../../../features/categorias/providers/categorias_provider.dart';
+import '../../../features/presupuestos/providers/presupuestos_provider.dart';
 import '../data/services/sync_service.dart';
 import 'gastos_provider.dart';
 import 'gastos_repository_provider.dart';
@@ -18,6 +20,10 @@ SyncService syncService(SyncServiceRef ref) {
     localDatasource: ref.watch(gastosLocalDatasourceProvider),
     remoteDatasource: ref.watch(gastosRemoteDatasourceProvider),
     logger: ref.watch(appLoggerProvider),
+    categoriasLocal: ref.watch(categoriasLocalDatasourceProvider),
+    categoriasRemote: ref.watch(categoriasRemoteDatasourceProvider),
+    presupuestosLocal: ref.watch(presupuestosLocalDatasourceProvider),
+    presupuestosRemote: ref.watch(presupuestosRemoteDatasourceProvider),
   );
 }
 
@@ -64,6 +70,7 @@ class SyncNotifier extends _$SyncNotifier {
     if (!state.hasError) {
       ref.invalidate(gastosDelMesProvider);
       ref.invalidate(dashboardResumenProvider);
+      ref.invalidate(categoriasProvider);
     }
   }
 

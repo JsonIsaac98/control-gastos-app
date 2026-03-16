@@ -41,10 +41,24 @@ class MainShellPage extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/agregar'),
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo Gasto'),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.small(
+            heroTag: 'fab_presupuestos',
+            onPressed: () => context.push('/presupuestos'),
+            tooltip: 'Presupuestos',
+            child: const Icon(Icons.account_balance_wallet_outlined),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton.extended(
+            heroTag: 'fab_nuevo_gasto',
+            onPressed: () => context.push('/agregar'),
+            icon: const Icon(Icons.add),
+            label: const Text('Nuevo Gasto'),
+          ),
+        ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );

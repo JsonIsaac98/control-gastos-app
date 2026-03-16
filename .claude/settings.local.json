@@ -6,7 +6,11 @@
       "Bash(flutter pub get)",
       "Bash(flutter pub run build_runner build --delete-conflicting-outputs)",
       "Bash(flutter analyze)",
-      "Bash(flutter pub run flutter_launcher_icons)"
+      "Bash(flutter pub run flutter_launcher_icons)",
+      "mcp__eba66e79-02b2-48f9-bee1-b44c3b0344b2__list_projects",
+      "mcp__eba66e79-02b2-48f9-bee1-b44c3b0344b2__apply_migration",
+      "mcp__eba66e79-02b2-48f9-bee1-b44c3b0344b2__list_tables",
+      "mcp__eba66e79-02b2-48f9-bee1-b44c3b0344b2__execute_sql"
     ]
   }
 }

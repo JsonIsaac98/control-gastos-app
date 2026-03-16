@@ -31,6 +31,7 @@ class GastosRemoteDatasource {
       'fecha': gasto.fecha.toUtc().toIso8601String(),
       'created_at':
           (gasto.createdAt ?? DateTime.now()).toUtc().toIso8601String(),
+      'categoria_id': gasto.categoriaId,
     };
 
     // Si el registro ya fue subido antes, incluir el UUID para upsert

@@ -20,6 +20,14 @@ abstract class AuthRepository {
   /// Cierra la sesión del usuario actualmente autenticado.
   Future<void> signOut();
 
+  /// Actualiza la contraseña del usuario autenticado actualmente.
+  /// Requiere sesión activa. Lanza [Exception] si falla.
+  Future<void> changePassword({required String newPassword});
+
+  /// Envía un email de recuperación/reseteo de contraseña al [email] dado.
+  /// No requiere sesión activa.
+  Future<void> sendPasswordReset({required String email});
+
   /// Retorna true si hay un usuario con sesión activa.
   bool get isAuthenticated;
 

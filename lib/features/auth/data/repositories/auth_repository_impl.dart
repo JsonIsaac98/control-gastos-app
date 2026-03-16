@@ -104,4 +104,32 @@ class AuthRepositoryImpl implements AuthRepository {
     // Mensaje original si no hay traducción específica
     return message;
   }
+
+  // ----------------------------------------------------------------
+  // Cambiar contraseña (requiere sesión activa)
+  // ----------------------------------------------------------------
+  @override
+  Future<void> changePassword({required String newPassword}) async {
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+    } on AuthException catch (e) {
+      throw Exception(_translateError(e.message));
+    } catch (e) {
+      throw Exception('Error al cambiar la contraseña. Verifica tu conexión.');
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // Recuperar contraseña por email
+  // ----------------------------------------------------------------
+  @override
+  Future<void> sendPasswordReset({required String email}) async {
+    try {
+      await _client.auth.resetPasswordForEmail(email.trim());
+    } on AuthException catch (e) {
+      throw Exception(_translateError(e.message));
+    } catch (e) {
+      throw Exception('Error al enviar el correo de recuperación.');
+    }
+  }
 }

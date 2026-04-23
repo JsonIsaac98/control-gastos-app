@@ -68,6 +68,10 @@ class GastosLocalDatasource {
             isSynced: const Value(false),
             categoriaId: Value(gasto.categoriaId),
             fotoUrl: Value(gasto.fotoUrl),
+            esCuota: Value(gasto.esCuota),
+            numeroCuotas: Value(gasto.numeroCuotas),
+            frecuenciaCuotas: Value(gasto.frecuenciaCuotas),
+            tarjetaId: Value(gasto.tarjetaId),
           ),
         );
     return gasto.copyWith(id: id, createdAt: now, isSynced: false);
@@ -89,6 +93,12 @@ class GastosLocalDatasource {
         .getSingleOrNull();
 
     if (row == null) return;
+
+    // Eliminar cuotas relacionadas (Supabase tiene ON DELETE CASCADE,
+    // así que no es necesario eliminarlas allá manualmente).
+    await (_db.delete(_db.cuotasProgramadasTable)
+          ..where((t) => t.gastoOrigenId.equals(id)))
+        .go();
 
     if (row.supabaseId == null) {
       // Nunca estuvo en Supabase → borrado físico inmediato
@@ -117,6 +127,10 @@ class GastosLocalDatasource {
         supabaseId: Value(gasto.supabaseId),
         categoriaId: Value(gasto.categoriaId),
         fotoUrl: Value(gasto.fotoUrl),
+        esCuota: Value(gasto.esCuota),
+        numeroCuotas: Value(gasto.numeroCuotas),
+        frecuenciaCuotas: Value(gasto.frecuenciaCuotas),
+        tarjetaId: Value(gasto.tarjetaId),
       ),
     );
   }
@@ -124,6 +138,14 @@ class GastosLocalDatasource {
   // ----------------------------------------------------------------
   // Métodos de sincronización — Push
   // ----------------------------------------------------------------
+
+  Future<GastoEntity?> getGastoById(int id) async {
+    final row = await (_db.select(_db.gastosTable)
+          ..where((t) => t.id.equals(id))
+          ..limit(1))
+        .getSingleOrNull();
+    return row != null ? _toEntity(row) : null;
+  }
 
   /// Retorna todos los gastos que aún no han sido subidos a Supabase
   /// (is_synced == false) y que NO están pendientes de eliminar,
@@ -164,9 +186,12 @@ class GastosLocalDatasource {
         .get();
   }
 
-  /// Elimina físicamente de SQLite el registro con [id].
+  /// Elimina físicamente de SQLite el registro con [id] y sus cuotas.
   /// Llamar SOLO después de confirmar la eliminación en Supabase.
   Future<void> hardDeleteById(int id) async {
+    await (_db.delete(_db.cuotasProgramadasTable)
+          ..where((t) => t.gastoOrigenId.equals(id)))
+        .go();
     await (_db.delete(_db.gastosTable)..where((t) => t.id.equals(id))).go();
   }
 
@@ -203,6 +228,10 @@ class GastosLocalDatasource {
             supabaseId: Value(data['id'] as String),
             categoriaId: Value(data['categoria_id'] as String?),
             fotoUrl: Value(data['foto_url'] as String?),
+            esCuota: Value((data['es_cuota'] as bool?) ?? false),
+            numeroCuotas: Value(data['numero_cuotas'] as int?),
+            frecuenciaCuotas: Value(data['frecuencia_cuotas'] as String?),
+            tarjetaId: Value(data['tarjeta_id'] as String?),
           ),
         );
   }
@@ -219,6 +248,10 @@ class GastosLocalDatasource {
       supabaseId: row.supabaseId,
       categoriaId: row.categoriaId,
       fotoUrl: row.fotoUrl,
+      esCuota: row.esCuota,
+      numeroCuotas: row.numeroCuotas,
+      frecuenciaCuotas: row.frecuenciaCuotas,
+      tarjetaId: row.tarjetaId,
     );
   }
 }

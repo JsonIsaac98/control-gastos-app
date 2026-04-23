@@ -31,6 +31,12 @@ class GastoEntity {
     this.categoriaId,
     // Foto de recibo (schema v5)
     this.fotoUrl,
+    // Cuotas de tarjeta de crédito (schema v6)
+    this.esCuota = false,
+    this.numeroCuotas,
+    this.frecuenciaCuotas,
+    // Tarjeta de crédito seleccionada (schema v8)
+    this.tarjetaId,
   });
 
   final int? id;
@@ -47,6 +53,14 @@ class GastoEntity {
   final String? categoriaId;
   /// URL de Supabase Storage de la foto del recibo. Null si no tiene foto.
   final String? fotoUrl;
+  /// true = compra a cuotas (solo tarjeta_credito).
+  final bool esCuota;
+  /// Número de cuotas (ej: 3, 6, 12). Null si no es cuota.
+  final int? numeroCuotas;
+  /// Frecuencia de pago: 'mensual' | 'quincenal' | 'semanal'. Null si no es cuota.
+  final String? frecuenciaCuotas;
+  /// ID de la tarjeta de crédito usada. Null si no es tarjeta o no especificada.
+  final String? tarjetaId;
 
   GastoEntity copyWith({
     int? id,
@@ -59,6 +73,10 @@ class GastoEntity {
     String? supabaseId,
     String? categoriaId,
     String? fotoUrl,
+    bool? esCuota,
+    int? numeroCuotas,
+    String? frecuenciaCuotas,
+    String? tarjetaId,
   }) {
     return GastoEntity(
       id: id ?? this.id,
@@ -71,6 +89,10 @@ class GastoEntity {
       supabaseId: supabaseId ?? this.supabaseId,
       categoriaId: categoriaId ?? this.categoriaId,
       fotoUrl: fotoUrl ?? this.fotoUrl,
+      esCuota: esCuota ?? this.esCuota,
+      numeroCuotas: numeroCuotas ?? this.numeroCuotas,
+      frecuenciaCuotas: frecuenciaCuotas ?? this.frecuenciaCuotas,
+      tarjetaId: tarjetaId ?? this.tarjetaId,
     );
   }
 
@@ -78,5 +100,7 @@ class GastoEntity {
   String toString() =>
       'GastoEntity(id: $id, descripcion: $descripcion, monto: $monto, '
       'tipoPago: ${tipoPago.label}, fecha: $fecha, '
-      'isSynced: $isSynced, supabaseId: $supabaseId, categoriaId: $categoriaId, fotoUrl: $fotoUrl)';
+      'isSynced: $isSynced, supabaseId: $supabaseId, categoriaId: $categoriaId, '
+      'fotoUrl: $fotoUrl, esCuota: $esCuota, numeroCuotas: $numeroCuotas, '
+      'frecuenciaCuotas: $frecuenciaCuotas)';
 }

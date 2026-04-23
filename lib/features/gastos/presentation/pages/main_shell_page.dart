@@ -19,6 +19,8 @@ class MainShellPage extends ConsumerWidget {
       currentIndex = 1;
     } else if (location.startsWith('/reportes')) {
       currentIndex = 2;
+    } else if (location.startsWith('/cuotas')) {
+      currentIndex = 3;
     } else {
       currentIndex = 0;
     }
@@ -35,6 +37,8 @@ class MainShellPage extends ConsumerWidget {
               context.go('/historial');
             case 2:
               context.go('/reportes');
+            case 3:
+              context.go('/cuotas');
           }
         },
         destinations: const [
@@ -52,6 +56,11 @@ class MainShellPage extends ConsumerWidget {
             icon: Icon(Icons.bar_chart_outlined),
             selectedIcon: Icon(Icons.bar_chart),
             label: 'Reportes',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.credit_card_outlined),
+            selectedIcon: Icon(Icons.credit_card),
+            label: 'Cuotas',
           ),
         ],
       ),
@@ -127,8 +136,10 @@ class SyncButton extends ConsumerWidget {
       if (next.hasError) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              next.error.toString().replaceFirst('Exception: ', ''),
+            content: const Text(
+              'Error al sincronizar. Verifica tu conexión.',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
@@ -168,7 +179,7 @@ class SyncButton extends ConsumerWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(msg),
+          content: Text(msg, maxLines: 2, overflow: TextOverflow.ellipsis),
           backgroundColor: bgColor,
           behavior: SnackBarBehavior.floating,
         ),

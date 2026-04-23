@@ -6,6 +6,11 @@ import '../../../../features/categorias/domain/entities/categoria_entity.dart';
 import '../../../../features/presupuestos/data/datasources/presupuestos_local_datasource.dart';
 import '../../../../features/presupuestos/data/datasources/presupuestos_remote_datasource.dart';
 import '../../../../features/presupuestos/domain/entities/presupuesto_entity.dart';
+import '../../../../features/tarjetas/data/datasources/tarjetas_local_datasource.dart';
+import '../../../../features/tarjetas/data/datasources/tarjetas_remote_datasource.dart';
+import '../../../../features/tarjetas/domain/entities/tarjeta_entity.dart';
+import '../datasources/cuotas_local_datasource.dart';
+import '../datasources/cuotas_remote_datasource.dart';
 import '../datasources/gastos_local_datasource.dart';
 import '../datasources/gastos_remote_datasource.dart';
 
@@ -64,6 +69,10 @@ class SyncService {
     required this.categoriasRemote,
     required this.presupuestosLocal,
     required this.presupuestosRemote,
+    required this.tarjetasLocal,
+    required this.tarjetasRemote,
+    required this.cuotasLocal,
+    required this.cuotasRemote,
   });
 
   final GastosLocalDatasource localDatasource;
@@ -73,6 +82,10 @@ class SyncService {
   final CategoriasRemoteDatasource categoriasRemote;
   final PresupuestosLocalDatasource presupuestosLocal;
   final PresupuestosRemoteDatasource presupuestosRemote;
+  final TarjetasLocalDatasource tarjetasLocal;
+  final TarjetasRemoteDatasource tarjetasRemote;
+  final CuotasLocalDatasource cuotasLocal;
+  final CuotasRemoteDatasource cuotasRemote;
 
   /// Ejecuta el ciclo completo de sincronización para [userId].
   ///
@@ -103,6 +116,11 @@ class SyncService {
 
         // Supabase respondió 20X → marcar como sincronizado en SQLite
         await localDatasource.markAsSynced(gasto.id!, supabaseId);
+
+        // Propagate supabaseId to related cuotas so they can sync next
+        if (gasto.esCuota) {
+          await cuotasLocal.updateGastoOrigenSupabaseId(gasto.id!, supabaseId);
+        }
 
         synced++;
         logger.d(
@@ -276,6 +294,12 @@ class SyncService {
       logger.e('SyncService: Error sync presupuestos', error: e, stackTrace: st);
     }
 
+    // ── Fase 4: Sync tarjetas de crédito ──────────────────────────
+    await _syncTarjetas(userId);
+
+    // ── Fase 5: Sync cuotas programadas ───────────────────────────
+    await _syncCuotas();
+
     return SyncResult(
       total: pushResult.total,
       synced: pushResult.synced,
@@ -283,5 +307,93 @@ class SyncService {
       pulled: pulled,
       deleted: deleted,
     );
+  }
+
+  // ----------------------------------------------------------------
+  // Sync tarjetas de crédito (push all + pull)
+  // ----------------------------------------------------------------
+  Future<void> _syncTarjetas(String userId) async {
+    try {
+      // Push: upsert todas las tarjetas locales
+      final tarjetas = await tarjetasLocal.getTarjetas();
+      for (final t in tarjetas) {
+        try {
+          await tarjetasRemote.upsertTarjeta(t, userId);
+          logger.d('SyncService: ✅ Tarjeta ${t.id} subida a Supabase');
+        } catch (e, st) {
+          logger.e('SyncService: ❌ Error sync tarjeta ${t.id}',
+              error: e, stackTrace: st);
+        }
+      }
+
+      // Delete remoto: eliminar de Supabase las tarjetas que ya no existen localmente
+      final localIds = tarjetas.map((t) => t.id).toSet();
+      final remotas = await tarjetasRemote.fetchTarjetas(userId);
+
+      for (final r in remotas) {
+        final id = r['id'] as String;
+        if (!localIds.contains(id)) {
+          // Existe en Supabase pero fue eliminada localmente → borrar remoto
+          try {
+            await tarjetasRemote.deleteTarjeta(id);
+            logger.d('SyncService: 🗑️ Tarjeta $id eliminada de Supabase');
+          } catch (e, st) {
+            logger.e('SyncService: ❌ Error al eliminar tarjeta remota $id',
+                error: e, stackTrace: st);
+          }
+        }
+      }
+
+      logger.i('SyncService: Tarjetas sincronizadas');
+    } catch (e, st) {
+      logger.e('SyncService: Error sync tarjetas', error: e, stackTrace: st);
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // Sync cuotas programadas (push unsynced + pull new)
+  // ----------------------------------------------------------------
+  Future<void> _syncCuotas() async {
+    try {
+      // Push: cuotas locales no sincronizadas cuyo gasto origen ya subió
+      final unsynced = await cuotasLocal.getUnsyncedCuotas();
+      for (final cuota in unsynced) {
+        if (cuota.gastoOrigenSupabaseId == null) {
+          // El gasto padre aún no se sincronizó; intentar obtener su supabaseId
+          final gastoLocal = await localDatasource
+              .getGastoById(cuota.gastoOrigenId)
+              .catchError((_) => null);
+          if (gastoLocal?.supabaseId == null) continue;
+
+          await cuotasLocal.updateGastoOrigenSupabaseId(
+              cuota.gastoOrigenId, gastoLocal!.supabaseId!);
+          continue; // Se actualizó isSynced=false; se reintentará próximo sync
+        }
+
+        try {
+          final supabaseId = await cuotasRemote.upsertCuota(cuota);
+          await cuotasLocal.markCuotaAsSynced(cuota.id!, supabaseId);
+          logger.d(
+              'SyncService: ✅ Cuota ${cuota.id} sincronizada → $supabaseId');
+        } catch (e, st) {
+          logger.e('SyncService: ❌ Error sync cuota ${cuota.id}',
+              error: e, stackTrace: st);
+        }
+      }
+
+      // Pull: cuotas remotas que no existen localmente
+      final remotas = await cuotasRemote.fetchCuotas();
+      for (final r in remotas) {
+        try {
+          await cuotasLocal.upsertFromRemote(r);
+        } catch (e, st) {
+          logger.e('SyncService: ❌ Error pull cuota', error: e, stackTrace: st);
+        }
+      }
+
+      logger.i('SyncService: Cuotas sincronizadas');
+    } catch (e, st) {
+      logger.e('SyncService: Error sync cuotas', error: e, stackTrace: st);
+    }
   }
 }

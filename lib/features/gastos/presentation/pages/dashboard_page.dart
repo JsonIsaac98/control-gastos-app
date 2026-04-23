@@ -38,19 +38,24 @@ class DashboardPage extends ConsumerWidget {
       ),
       body: resumenAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 48),
-              const SizedBox(height: 8),
-              Text('Error: $e'),
-              TextButton(
-                onPressed: () => ref.refresh(dashboardResumenProvider),
-                child: const Text('Reintentar'),
+        error: (e, _) => Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                'Error al cargar datos',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
-            ],
-          ),
+            ),
+            TextButton(
+              onPressed: () => ref.refresh(dashboardResumenProvider),
+              child: const Text('Reintentar'),
+            ),
+          ],
         ),
         data: (resumen) => RefreshIndicator(
           onRefresh: () async => ref.refresh(dashboardResumenProvider),

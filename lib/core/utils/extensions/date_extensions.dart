@@ -23,7 +23,7 @@ extension DateTimeExtensions on DateTime {
 extension DoubleExtensions on double {
   String get toCurrency {
     final formatter = NumberFormat.currency(
-      locale: 'es_GT',
+      locale: 'en_US',
       symbol: 'Q',
       decimalDigits: 2,
     );

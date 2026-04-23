@@ -6,7 +6,10 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/utils/extensions/date_extensions.dart';
 import '../../../categorias/presentation/widgets/categoria_chip.dart';
 import '../../../categorias/providers/categorias_provider.dart';
+import '../../../tarjetas/domain/entities/tarjeta_entity.dart';
+import '../../../tarjetas/providers/tarjetas_provider.dart';
 import '../../domain/entities/gasto_entity.dart';
+import '../../providers/cuotas_provider.dart';
 import '../../providers/gastos_provider.dart';
 
 // TODO: imports de foto desactivados temporalmente
@@ -31,6 +34,11 @@ class _AddGastoPageState extends ConsumerState<AddGastoPage> {
   DateTime _fecha = DateTime.now();
   String? _categoriaId;
   bool _guardando = false;
+  // Tarjeta y cuotas
+  TarjetaEntity? _tarjetaSeleccionada;
+  bool _esCuota = false;
+  int _numeroCuotas = 3;
+  String _frecuenciaCuotas = 'mensual';
   // TODO: estado de foto desactivado temporalmente
   // File? _fotoFile;
   // String? _fotoUrl;
@@ -45,6 +53,7 @@ class _AddGastoPageState extends ConsumerState<AddGastoPage> {
   @override
   Widget build(BuildContext context) {
     final categoriasAsync = ref.watch(categoriasProvider);
+    final tarjetasAsync = ref.watch(tarjetasProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -85,9 +94,48 @@ class _AddGastoPageState extends ConsumerState<AddGastoPage> {
             // Tipo de pago
             _TipoPagoSelector(
               selected: _tipoPago,
-              onChanged: (tipo) => setState(() => _tipoPago = tipo),
+              onChanged: (tipo) => setState(() {
+                _tipoPago = tipo;
+                // Limpiar cuotas si cambia a otro tipo de pago
+                if (tipo != TipoPago.tarjetaCredito) {
+                  _esCuota = false;
+                }
+              }),
             ),
             const SizedBox(height: 20),
+
+            // Selector de tarjeta (solo para tarjeta de crédito)
+            if (_tipoPago == TipoPago.tarjetaCredito) ...[
+              _TarjetaSelector(
+                tarjetasAsync: tarjetasAsync,
+                seleccionada: _tarjetaSeleccionada,
+                onChanged: (t) => setState(() {
+                  _tarjetaSeleccionada = t;
+                }),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Cuotas (solo para tarjeta de crédito)
+            if (_tipoPago == TipoPago.tarjetaCredito) ...[
+              _CuotasSection(
+                esCuota: _esCuota,
+                numeroCuotas: _numeroCuotas,
+                frecuenciaCuotas: _frecuenciaCuotas,
+                diaCorte: _tarjetaSeleccionada?.diaCorte ?? 1,
+                montoTotal: double.tryParse(
+                      _montoController.text.replaceAll(',', '.'),
+                    ) ??
+                    0,
+                onEsCuotaChanged: (v) => setState(() => _esCuota = v),
+                onNumeroCuotasChanged: (v) =>
+                    setState(() => _numeroCuotas = v),
+                onFrecuenciaCuotasChanged: (v) =>
+                    setState(() => _frecuenciaCuotas = v),
+                onDiaCorteChanged: null, // el día de corte viene de la tarjeta
+              ),
+              const SizedBox(height: 20),
+            ],
 
             // Categoría (opcional)
             Text(
@@ -184,16 +232,42 @@ class _AddGastoPageState extends ConsumerState<AddGastoPage> {
       // String? uploadedFotoUrl = _fotoUrl;
       // if (_fotoFile != null) { ... }
 
+      final esCuotaFinal =
+          _tipoPago == TipoPago.tarjetaCredito && _esCuota;
+
+      // Si es cuota, guardar el monto por cuota (total / número de cuotas)
+      final montoGuardado = esCuotaFinal && _numeroCuotas > 1
+          ? monto / _numeroCuotas
+          : monto;
+
+      final diaCorte = _tarjetaSeleccionada?.diaCorte ?? 1;
+
       final gasto = GastoEntity(
         descripcion: _descripcionController.text.trim(),
-        monto: monto,
+        monto: montoGuardado,
         tipoPago: _tipoPago,
         fecha: _fecha,
         categoriaId: _categoriaId,
         fotoUrl: null, // TODO: reactivar con uploadedFotoUrl
+        esCuota: esCuotaFinal,
+        numeroCuotas: esCuotaFinal ? _numeroCuotas : null,
+        frecuenciaCuotas: esCuotaFinal ? _frecuenciaCuotas : null,
+        tarjetaId: _tarjetaSeleccionada?.id,
       );
 
-      await ref.read(gastosDelMesProvider.notifier).addGasto(gasto);
+      final gastoGuardado =
+          await ref.read(gastosDelMesProvider.notifier).addGasto(gasto);
+
+      // Crear registros de cuotas programadas
+      if (esCuotaFinal && _numeroCuotas > 1) {
+        await ref
+            .read(cuotasLocalDatasourceProvider)
+            .crearCuotasProgramadas(
+              gastoOrigen: gastoGuardado,
+              diaCorte: diaCorte,
+            );
+        ref.invalidate(cuotasPendientesProvider);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -347,6 +421,426 @@ class _FechaField extends StatelessWidget {
     if (picked != null) {
       onChanged(picked);
     }
+  }
+}
+
+// ----------------------------------------------------------------
+// Selector de tarjeta de crédito
+// ----------------------------------------------------------------
+class _TarjetaSelector extends StatelessWidget {
+  const _TarjetaSelector({
+    required this.tarjetasAsync,
+    required this.seleccionada,
+    required this.onChanged,
+  });
+
+  final AsyncValue<List<TarjetaEntity>> tarjetasAsync;
+  final TarjetaEntity? seleccionada;
+  final ValueChanged<TarjetaEntity?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return tarjetasAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (tarjetas) {
+        if (tarjetas.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: cs.outline.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, size: 16,
+                    color: cs.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Configura tus tarjetas en Ajustes → Tarjetas de crédito',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tarjeta',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                // Opción "Sin especificar"
+                _TarjetaChip(
+                  label: 'Sin especificar',
+                  colorHex: null,
+                  isSelected: seleccionada == null,
+                  onTap: () => onChanged(null),
+                ),
+                ...tarjetas.map(
+                  (t) => _TarjetaChip(
+                    label: t.nombre,
+                    colorHex: t.color,
+                    isSelected: seleccionada?.id == t.id,
+                    onTap: () => onChanged(
+                      seleccionada?.id == t.id ? null : t,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _TarjetaChip extends StatelessWidget {
+  const _TarjetaChip({
+    required this.label,
+    required this.colorHex,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String? colorHex;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final cardColor = colorHex != null
+        ? Color(int.parse(colorHex!.replaceFirst('#', '0xFF')))
+        : cs.outline;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? cardColor.withValues(alpha: 0.15)
+              : cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? cardColor : cs.outline.withValues(alpha: 0.3),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.credit_card,
+                size: 14,
+                color: isSelected ? cardColor : cs.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? cardColor : cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CuotasSection extends StatelessWidget {
+  const _CuotasSection({
+    required this.esCuota,
+    required this.numeroCuotas,
+    required this.frecuenciaCuotas,
+    required this.diaCorte,
+    required this.montoTotal,
+    required this.onEsCuotaChanged,
+    required this.onNumeroCuotasChanged,
+    required this.onFrecuenciaCuotasChanged,
+    required this.onDiaCorteChanged,  // null = día de corte viene de la tarjeta
+  });
+
+  final bool esCuota;
+  final int numeroCuotas;
+  final String frecuenciaCuotas;
+  final int diaCorte;
+  final double montoTotal;
+  final ValueChanged<bool> onEsCuotaChanged;
+  final ValueChanged<int> onNumeroCuotasChanged;
+  final ValueChanged<String> onFrecuenciaCuotasChanged;
+  final ValueChanged<int>? onDiaCorteChanged;
+
+  static const _frecuencias = ['mensual', 'quincenal', 'semanal'];
+  static const _frecuenciaLabels = {
+    'mensual': 'Mensual',
+    'quincenal': 'Quincenal',
+    'semanal': 'Semanal',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.secondaryContainer.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          // Toggle principal
+          SwitchListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            secondary: Icon(
+              Icons.view_list_outlined,
+              color: esCuota ? colorScheme.primary : colorScheme.onSurfaceVariant,
+            ),
+            title: Text(
+              'Compra a cuotas',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            value: esCuota,
+            onChanged: onEsCuotaChanged,
+          ),
+
+          // Detalle de cuotas (solo si está activado)
+          if (esCuota) ...[
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Fila 1: # cuotas + frecuencia
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Número de cuotas',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                _StepButton(
+                                  icon: Icons.remove,
+                                  onPressed: numeroCuotas > 2
+                                      ? () => onNumeroCuotasChanged(
+                                          numeroCuotas - 1)
+                                      : null,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  '$numeroCuotas',
+                                  style:
+                                      theme.textTheme.headlineSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                _StepButton(
+                                  icon: Icons.add,
+                                  onPressed: numeroCuotas < 60
+                                      ? () => onNumeroCuotasChanged(
+                                          numeroCuotas + 1)
+                                      : null,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Frecuencia',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<String>(
+                              value: frecuenciaCuotas,
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                              ),
+                              items: _frecuencias
+                                  .map(
+                                    (f) => DropdownMenuItem(
+                                      value: f,
+                                      child: Text(_frecuenciaLabels[f]!),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) onFrecuenciaCuotasChanged(v);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Fila 2: día de corte
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Día de corte',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // Si viene de la tarjeta, mostrar info-only
+                            if (onDiaCorteChanged == null)
+                              InputDecorator(
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  prefixIcon: Icon(Icons.event_outlined),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                ),
+                                child: Text(
+                                  'Día $diaCorte (de la tarjeta)',
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              )
+                            else
+                              DropdownButtonFormField<int>(
+                                value: diaCorte,
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  prefixIcon: Icon(Icons.event_outlined),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                ),
+                                items: List.generate(
+                                  28,
+                                  (i) => DropdownMenuItem(
+                                    value: i + 1,
+                                    child: Text('Día ${i + 1}'),
+                                  ),
+                                ),
+                                onChanged: (v) {
+                                  if (v != null) onDiaCorteChanged!(v);
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                      // Resumen de monto por cuota
+                      if (montoTotal > 0) ...[
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Por cuota',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                                Text(
+                                  'Q ${(montoTotal / numeroCuotas).toStringAsFixed(2)}',
+                                  style:
+                                      theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                                Text(
+                                  '× $numeroCuotas cuotas',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: colorScheme.onPrimaryContainer
+                                        .withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _StepButton extends StatelessWidget {
+  const _StepButton({required this.icon, this.onPressed});
+
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.tonal(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(36, 36),
+        padding: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: Icon(icon, size: 18),
+    );
   }
 }
 

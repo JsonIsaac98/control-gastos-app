@@ -218,7 +218,7 @@ final selectedMonthProvider =
 );
 
 typedef _$SelectedMonth = AutoDisposeNotifier<DateTime>;
-String _$gastosDelMesHash() => r'036238ff2a0ab0474ee3acac917f8c8f668e568a';
+String _$gastosDelMesHash() => r'c99b120c37eb7db21c802e7dedaeb864ec568199';
 
 /// Lista de gastos del mes seleccionado
 ///

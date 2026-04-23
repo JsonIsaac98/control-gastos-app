@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/gastos/presentation/pages/add_gasto_page.dart';
+import '../../features/gastos/presentation/pages/cuotas_page.dart';
 import '../../features/gastos/presentation/pages/dashboard_page.dart';
 import '../../features/gastos/presentation/pages/gastos_list_page.dart';
 import '../../features/gastos/presentation/pages/main_shell_page.dart';
@@ -15,6 +16,7 @@ import '../../features/presupuestos/presentation/pages/presupuestos_page.dart';
 import '../../features/reportes/presentation/pages/reportes_page.dart';
 import '../../features/settings/presentation/pages/categorias_settings_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/tarjetas/presentation/pages/tarjetas_settings_page.dart';
 import '../providers/supabase_provider.dart';
 import '../services/local_auth_cache.dart';
 
@@ -116,6 +118,12 @@ GoRouter appRouter(AppRouterRef ref) {
               child: ReportesPage(),
             ),
           ),
+          GoRoute(
+            path: '/cuotas',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: CuotasPage(),
+            ),
+          ),
         ],
       ),
       GoRoute(
@@ -133,6 +141,10 @@ GoRouter appRouter(AppRouterRef ref) {
       GoRoute(
         path: '/settings/categorias',
         builder: (context, state) => const CategoriasSettingsPage(),
+      ),
+      GoRoute(
+        path: '/settings/tarjetas',
+        builder: (context, state) => const TarjetasSettingsPage(),
       ),
     ],
   );

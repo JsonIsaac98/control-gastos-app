@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../domain/entities/gasto_entity.dart';
+import 'cuotas_provider.dart';
 import 'gastos_repository_provider.dart';
 
 part 'gastos_provider.g.dart';
@@ -45,12 +46,12 @@ class GastosDelMes extends _$GastosDelMes {
     });
   }
 
-  Future<void> addGasto(GastoEntity gasto) async {
+  Future<GastoEntity> addGasto(GastoEntity gasto) async {
     final repository = ref.read(gastosRepositoryProvider);
-    await repository.addGasto(gasto);
+    final saved = await repository.addGasto(gasto);
     await refresh();
-    // Invalidar también el dashboard
     ref.invalidate(dashboardResumenProvider);
+    return saved;
   }
 
   Future<void> deleteGasto(int id) async {
@@ -58,6 +59,8 @@ class GastosDelMes extends _$GastosDelMes {
     await repository.deleteGasto(id);
     await refresh();
     ref.invalidate(dashboardResumenProvider);
+    ref.invalidate(cuotasPendientesProvider);
+    ref.invalidate(todasLasCuotasProvider);
   }
 }
 

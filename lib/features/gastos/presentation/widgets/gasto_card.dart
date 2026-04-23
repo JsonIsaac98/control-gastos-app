@@ -77,6 +77,13 @@ class GastoCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         TipoPagoChip(tipoPago: gasto.tipoPago, small: true),
+                        if (gasto.esCuota && gasto.numeroCuotas != null) ...[
+                          const SizedBox(width: 6),
+                          _CuotasBadge(
+                            numeroCuotas: gasto.numeroCuotas!,
+                            frecuencia: gasto.frecuenciaCuotas,
+                          ),
+                        ],
                         // TODO: ícono de foto desactivado temporalmente
                         // if (gasto.fotoUrl != null) ...[
                         //   const SizedBox(width: 6),
@@ -116,9 +123,7 @@ class GastoCard extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar gasto'),
-        content: Text(
-          '¿Deseas eliminar "${gasto.descripcion}"?',
-        ),
+        content: Text('¿Deseas eliminar "${gasto.descripcion}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -130,6 +135,45 @@ class GastoCard extends StatelessWidget {
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
             child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CuotasBadge extends StatelessWidget {
+  const _CuotasBadge({required this.numeroCuotas, this.frecuencia});
+
+  final int numeroCuotas;
+  final String? frecuencia;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final label = frecuencia == 'mensual' || frecuencia == null
+        ? '${numeroCuotas}c'
+        : '${numeroCuotas}c·${frecuencia![0]}';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: colorScheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.view_list_outlined,
+              size: 10, color: colorScheme.onTertiaryContainer),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onTertiaryContainer,
+            ),
           ),
         ],
       ),

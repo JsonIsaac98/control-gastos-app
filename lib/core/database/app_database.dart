@@ -46,6 +46,19 @@ class GastosTable extends Table {
   // ── Foto de recibo (schema v5) ─────────────────────────────────
   /// URL de Supabase Storage de la foto del recibo. Nullable.
   TextColumn get fotoUrl => text().nullable()();
+
+  // ── Tarjeta de crédito usada (schema v8) ──────────────────────
+  /// FK a tarjetas_credito.id. Null si no es pago con tarjeta o no especificada.
+  TextColumn get tarjetaId => text().nullable()();
+
+  // ── Cuotas de tarjeta de crédito (schema v6) ──────────────────
+  /// true = compra financiada en cuotas (solo aplica a tarjeta_credito).
+  BoolColumn get esCuota =>
+      boolean().withDefault(const Constant(false))();
+  /// Cantidad de cuotas (ej: 3, 6, 12). Null si no es cuota.
+  IntColumn get numeroCuotas => integer().nullable()();
+  /// Frecuencia de pago: 'mensual' | 'quincenal' | 'semanal'. Null si no es cuota.
+  TextColumn get frecuenciaCuotas => text().nullable()();
 }
 
 // ----------------------------------------------------------------
@@ -86,12 +99,65 @@ class PresupuestosTable extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [GastosTable, CategoriasTable, PresupuestosTable])
+// ----------------------------------------------------------------
+// Tabla de tarjetas de crédito (schema v8)
+// ----------------------------------------------------------------
+class TarjetasCreditoTable extends Table {
+  @override
+  String get tableName => 'tarjetas_credito';
+
+  TextColumn get id => text()();
+  TextColumn get nombre => text()(); // "TC PROMERICA"
+  IntColumn get diaCorte => integer()(); // 1-28
+  TextColumn get color => text().nullable()(); // hex color para la UI
+  BoolColumn get isDefault =>
+      boolean().withDefault(const Constant(false))();
+  IntColumn get orden => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+// ----------------------------------------------------------------
+// Tabla de cuotas programadas (schema v7)
+// ----------------------------------------------------------------
+class CuotasProgramadasTable extends Table {
+  @override
+  String get tableName => 'cuotas_programadas';
+
+  IntColumn get id => integer().autoIncrement()();
+  /// FK al gasto que originó la compra a cuotas.
+  IntColumn get gastoOrigenId => integer()();
+  /// UUID de Supabase del gasto origen (para sync).
+  TextColumn get gastoOrigenSupabaseId => text().nullable()();
+  /// FK a la tarjeta de crédito usada (schema v8).
+  TextColumn get tarjetaId => text().nullable()();
+  /// Descripción cacheada del gasto origen.
+  TextColumn get descripcion => text()();
+  /// Número de esta cuota (1-based).
+  IntColumn get numeroCuota => integer()();
+  /// Total de cuotas del plan.
+  IntColumn get totalCuotas => integer()();
+  /// Monto por cuota (total / totalCuotas).
+  RealColumn get monto => real()();
+  /// Fecha estimada de cargo en tarjeta (día de corte del mes).
+  DateTimeColumn get fechaVencimiento => dateTime()();
+  BoolColumn get isPagado =>
+      boolean().withDefault(const Constant(false))();
+  DateTimeColumn get fechaPagado => dateTime().nullable()();
+  /// FK al gasto registrado para esta cuota cuando se paga.
+  IntColumn get gastoRegistradoId => integer().nullable()();
+  BoolColumn get isSynced =>
+      boolean().withDefault(const Constant(false))();
+  TextColumn get supabaseId => text().nullable()();
+}
+
+@DriftDatabase(tables: [GastosTable, CategoriasTable, PresupuestosTable, CuotasProgramadasTable, TarjetasCreditoTable])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 8;
 
   /// Migración incremental: solo toca lo que cambió entre versiones.
   @override
@@ -116,6 +182,23 @@ class AppDatabase extends _$AppDatabase {
           // v4 → v5: foto del recibo en gastos
           if (from < 5) {
             await migrator.addColumn(gastosTable, gastosTable.fotoUrl);
+          }
+          // v5 → v6: cuotas de tarjeta de crédito
+          if (from < 6) {
+            await migrator.addColumn(gastosTable, gastosTable.esCuota);
+            await migrator.addColumn(gastosTable, gastosTable.numeroCuotas);
+            await migrator.addColumn(gastosTable, gastosTable.frecuenciaCuotas);
+          }
+          // v6 → v7: tabla de seguimiento de cuotas programadas
+          if (from < 7) {
+            await migrator.createTable(cuotasProgramadasTable);
+          }
+          // v7 → v8: tarjetas de crédito + tarjetaId en gastos y cuotas
+          if (from < 8) {
+            await migrator.createTable(tarjetasCreditoTable);
+            await migrator.addColumn(gastosTable, gastosTable.tarjetaId);
+            await migrator.addColumn(
+                cuotasProgramadasTable, cuotasProgramadasTable.tarjetaId);
           }
         },
       );

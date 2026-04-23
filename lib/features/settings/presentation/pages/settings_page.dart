@@ -87,6 +87,13 @@ class SettingsPage extends ConsumerWidget {
             onTap: () => context.push('/settings/categorias'),
           ),
           ListTile(
+            leading: const Icon(Icons.credit_card_outlined),
+            title: const Text('Tarjetas de crédito'),
+            subtitle: const Text('Gestionar tarjetas y días de corte'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/tarjetas'),
+          ),
+          ListTile(
             leading: const Icon(Icons.account_balance_wallet_outlined),
             title: const Text('Presupuestos'),
             subtitle: const Text('Gestionar presupuestos mensuales'),

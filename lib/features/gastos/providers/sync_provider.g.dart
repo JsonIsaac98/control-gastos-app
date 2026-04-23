@@ -6,7 +6,45 @@ part of 'sync_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$syncServiceHash() => r'd480ea8340268e2f8a3fd68328d6bb27260a32eb';
+String _$tarjetasRemoteDatasourceHash() =>
+    r'0477b9f6321fa0287d2f955f8765371db7af9dc1';
+
+/// See also [tarjetasRemoteDatasource].
+@ProviderFor(tarjetasRemoteDatasource)
+final tarjetasRemoteDatasourceProvider =
+    Provider<TarjetasRemoteDatasource>.internal(
+  tarjetasRemoteDatasource,
+  name: r'tarjetasRemoteDatasourceProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$tarjetasRemoteDatasourceHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef TarjetasRemoteDatasourceRef = ProviderRef<TarjetasRemoteDatasource>;
+String _$cuotasRemoteDatasourceHash() =>
+    r'8e630032ef2f729b8e4e161678465a75af4bbe95';
+
+/// See also [cuotasRemoteDatasource].
+@ProviderFor(cuotasRemoteDatasource)
+final cuotasRemoteDatasourceProvider =
+    Provider<CuotasRemoteDatasource>.internal(
+  cuotasRemoteDatasource,
+  name: r'cuotasRemoteDatasourceProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$cuotasRemoteDatasourceHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef CuotasRemoteDatasourceRef = ProviderRef<CuotasRemoteDatasource>;
+String _$syncServiceHash() => r'd3cf587d8030b4c5b33f51f158806b0cbc8bde20';
 
 /// See also [syncService].
 @ProviderFor(syncService)
@@ -22,7 +60,7 @@ final syncServiceProvider = Provider<SyncService>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef SyncServiceRef = ProviderRef<SyncService>;
-String _$syncNotifierHash() => r'08b9d721c5060085c57746d49d906fed64c78d98';
+String _$syncNotifierHash() => r'921b6587d5d07b751753767cf4e332e5de48638b';
 
 /// Estado: AsyncValue<SyncResult?>
 ///   - data(null)         → sin sincronización reciente

@@ -2,10 +2,15 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/providers/logger_provider.dart';
+import '../../../core/providers/supabase_provider.dart';
 import '../../../core/services/local_auth_cache.dart';
 import '../../../features/categorias/providers/categorias_provider.dart';
 import '../../../features/presupuestos/providers/presupuestos_provider.dart';
+import '../../../features/tarjetas/data/datasources/tarjetas_remote_datasource.dart';
+import '../../../features/tarjetas/providers/tarjetas_provider.dart';
+import '../data/datasources/cuotas_remote_datasource.dart';
 import '../data/services/sync_service.dart';
+import 'cuotas_provider.dart';
 import 'gastos_provider.dart';
 import 'gastos_repository_provider.dart';
 
@@ -14,6 +19,17 @@ part 'sync_provider.g.dart';
 // ----------------------------------------------------------------
 // SyncService provider
 // ----------------------------------------------------------------
+@Riverpod(keepAlive: true)
+TarjetasRemoteDatasource tarjetasRemoteDatasource(
+    TarjetasRemoteDatasourceRef ref) {
+  return TarjetasRemoteDatasource(ref.watch(supabaseClientProvider));
+}
+
+@Riverpod(keepAlive: true)
+CuotasRemoteDatasource cuotasRemoteDatasource(CuotasRemoteDatasourceRef ref) {
+  return CuotasRemoteDatasource(ref.watch(supabaseClientProvider));
+}
+
 @Riverpod(keepAlive: true)
 SyncService syncService(SyncServiceRef ref) {
   return SyncService(
@@ -24,6 +40,10 @@ SyncService syncService(SyncServiceRef ref) {
     categoriasRemote: ref.watch(categoriasRemoteDatasourceProvider),
     presupuestosLocal: ref.watch(presupuestosLocalDatasourceProvider),
     presupuestosRemote: ref.watch(presupuestosRemoteDatasourceProvider),
+    tarjetasLocal: ref.watch(tarjetasLocalDatasourceProvider),
+    tarjetasRemote: ref.watch(tarjetasRemoteDatasourceProvider),
+    cuotasLocal: ref.watch(cuotasLocalDatasourceProvider),
+    cuotasRemote: ref.watch(cuotasRemoteDatasourceProvider),
   );
 }
 
@@ -72,6 +92,9 @@ class SyncNotifier extends _$SyncNotifier {
       ref.invalidate(dashboardResumenProvider);
       ref.invalidate(categoriasProvider);
       ref.invalidate(presupuestosMesProvider);
+      ref.invalidate(tarjetasProvider);
+      ref.invalidate(todasLasCuotasProvider);
+      ref.invalidate(cuotasPendientesProvider);
     }
   }
 

@@ -1,8 +1,12 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/biometric_auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -16,6 +20,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _biometricAttempted = false;
 
   @override
   void dispose() {
@@ -29,6 +34,23 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final authState = ref.watch(authNotifierProvider);
     final isLoading = authState.isLoading;
     final colorScheme = Theme.of(context).colorScheme;
+
+    final availableAsync = ref.watch(biometricAvailableProvider);
+    final enabledAsync = ref.watch(biometricEnabledProvider);
+    final hasSessionAsync = ref.watch(biometricHasStoredSessionProvider);
+
+    final biometricReady = (availableAsync.value ?? false) &&
+        (enabledAsync.value ?? false) &&
+        (hasSessionAsync.value ?? false);
+
+    // Auto-disparar el prompt biométrico la primera vez que entra al login
+    // con biometría lista. Solo una vez por ciclo de pantalla.
+    if (biometricReady && !_biometricAttempted && !isLoading) {
+      _biometricAttempted = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _signInWithBiometrics();
+      });
+    }
 
     // Mostrar errores de autenticación en SnackBar
     ref.listen(authNotifierProvider, (_, next) {
@@ -110,6 +132,44 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 28),
+
+                  // ── Botón biométrico ───────────────────────────
+                  if (biometricReady) ...[
+                    OutlinedButton.icon(
+                      onPressed: isLoading ? null : _signInWithBiometrics,
+                      icon: Icon(_biometricIcon()),
+                      label: Text(_biometricLabel()),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52),
+                        side: BorderSide(color: colorScheme.primary),
+                        foregroundColor: colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Divider(color: colorScheme.outlineVariant),
+                        ),
+                        Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'o',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                    color: colorScheme.onSurfaceVariant),
+                          ),
+                        ),
+                        Expanded(
+                          child: Divider(color: colorScheme.outlineVariant),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   // ── Correo ─────────────────────────────────────
                   TextFormField(
@@ -203,12 +263,29 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
+  IconData _biometricIcon() {
+    if (kIsWeb) return Icons.fingerprint;
+    return Platform.isIOS ? Icons.face_outlined : Icons.fingerprint;
+  }
+
+  String _biometricLabel() {
+    if (kIsWeb) return 'Iniciar con biometría';
+    return Platform.isIOS
+        ? 'Iniciar con Face ID'
+        : 'Iniciar con huella';
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     await ref.read(authNotifierProvider.notifier).signIn(
           email: _emailController.text,
           password: _passwordController.text,
         );
+    // El router se encarga de la redirección vía authStateChanges
+  }
+
+  Future<void> _signInWithBiometrics() async {
+    await ref.read(authNotifierProvider.notifier).signInWithBiometrics();
     // El router se encarga de la redirección vía authStateChanges
   }
 }

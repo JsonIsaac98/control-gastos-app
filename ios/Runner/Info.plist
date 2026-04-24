@@ -51,5 +51,7 @@
 	<string>Necesitamos acceso a tu galería para seleccionar fotos de recibos.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Necesitamos permiso para guardar fotos en tu galería.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Usamos Face ID para que puedas iniciar sesión y desbloquear la app de forma rápida y segura.</string>
 </dict>
 </plist>

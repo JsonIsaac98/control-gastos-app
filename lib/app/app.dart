@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/providers/theme_provider.dart';
 import '../core/router/app_router.dart';
+import '../core/services/app_lock_gate.dart';
 import '../core/theme/app_theme.dart';
 
 class App extends ConsumerWidget {
@@ -20,6 +21,10 @@ class App extends ConsumerWidget {
       darkTheme:  AppTheme.dark(),
       themeMode:  themeMode,   // system (default) | light | dark
       routerConfig: router,
+      // Envolver al router con AppLockGate para mostrar el overlay
+      // biométrico por encima de toda la navegación cuando aplique.
+      builder: (context, child) =>
+          AppLockGate(child: child ?? const SizedBox.shrink()),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

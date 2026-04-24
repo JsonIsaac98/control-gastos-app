@@ -1,9 +1,14 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/local_auth_cache.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../auth/providers/biometric_auth_provider.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -12,6 +17,10 @@ class SettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final email = LocalAuthCache.instance.email ?? '—';
     final colorScheme = Theme.of(context).colorScheme;
+    final biometricAvailable =
+        ref.watch(biometricAvailableProvider).value ?? false;
+    final biometricEnabled =
+        ref.watch(biometricEnabledProvider).value ?? false;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Configuración')),
@@ -58,6 +67,16 @@ class SettingsPage extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _mostrarDialogoCambiarPassword(context, ref),
           ),
+          if (biometricAvailable)
+            SwitchListTile(
+              secondary: Icon(_biometricIcon()),
+              title: Text(_biometricTitle()),
+              subtitle: const Text(
+                  'Inicia sesión y desbloquea la app con biometría'),
+              value: biometricEnabled,
+              onChanged: (value) =>
+                  _toggleBiometric(context, ref, value),
+            ),
           // ListTile(
           //   leading: const Icon(Icons.email_outlined),
           //   title: const Text('Recuperar contraseña'),
@@ -241,6 +260,80 @@ class SettingsPage extends ConsumerWidget {
 
     newPassCtrl.dispose();
     confirmCtrl.dispose();
+  }
+
+  // ----------------------------------------------------------------
+  // Toggle biometría
+  // ----------------------------------------------------------------
+  IconData _biometricIcon() {
+    if (kIsWeb) return Icons.fingerprint;
+    return Platform.isIOS ? Icons.face_outlined : Icons.fingerprint;
+  }
+
+  String _biometricTitle() {
+    if (kIsWeb) return 'Autenticación biométrica';
+    return Platform.isIOS ? 'Face ID' : 'Huella digital';
+  }
+
+  Future<void> _toggleBiometric(
+    BuildContext context,
+    WidgetRef ref,
+    bool value,
+  ) async {
+    final repo = ref.read(biometricAuthRepositoryProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    final errorColor = Theme.of(context).colorScheme.error;
+
+    if (value) {
+      // Activar → confirmar con biometría y guardar refresh token actual.
+      final ok = await repo.authenticate(
+        reason: 'Confirma tu identidad para habilitar biometría',
+      );
+      if (!ok) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text('Autenticación cancelada.'),
+            backgroundColor: errorColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      final session = Supabase.instance.client.auth.currentSession;
+      final token = session?.refreshToken;
+      if (token == null || token.isEmpty) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text(
+                'No hay sesión activa. Inicia sesión con tu contraseña primero.'),
+            backgroundColor: errorColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      await repo.saveRefreshToken(token);
+      await repo.setBiometricEnabled(true);
+      ref.invalidate(biometricEnabledProvider);
+      ref.invalidate(biometricHasStoredSessionProvider);
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('✅ Biometría habilitada'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      // Desactivar → limpiar credencial y apagar flag.
+      await ref.read(biometricEnabledProvider.notifier).set(false);
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Biometría deshabilitada'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   // ----------------------------------------------------------------

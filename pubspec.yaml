@@ -57,6 +57,11 @@ dependencies:
   # UUIDs reales para presupuestos y categorías offline
   uuid: ^4.5.1
 
+  # Autenticación biométrica (Face ID / huella)
+  local_auth: ^2.3.0
+  # Almacenamiento seguro para refresh token (Keychain iOS / EncryptedSharedPreferences Android)
+  flutter_secure_storage: ^9.2.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
